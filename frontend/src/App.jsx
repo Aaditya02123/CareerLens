@@ -1,4 +1,21 @@
+import { useEffect, useState } from 'react'
+
 function App() {
+  const [backendStatus, setBackendStatus] = useState('loading')
+
+  useEffect(() => {
+    fetch('http://127.0.0.1:8000/health')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`)
+        }
+
+        return response.json()
+      })
+      .then((data) => setBackendStatus(data.status))
+      .catch(() => setBackendStatus('unavailable'))
+  }, [])
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-slate-50">
       <section className="max-w-xl text-center">
@@ -13,6 +30,10 @@ function App() {
         </p>
         <p className="mt-8 text-sm text-emerald-300">
           Frontend is running.
+        </p>
+        <p className="mt-3 text-sm text-slate-300">
+          Backend status:{' '}
+          <span className="font-semibold text-sky-300">{backendStatus}</span>
         </p>
       </section>
     </main>
