@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.health import router as health_router
+
 app = FastAPI(title="CareerLens API")
 
 app.add_middleware(
@@ -10,8 +12,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/health")
-def health_check() -> dict[str, str]:
-    """Report that the API is available."""
-    return {"status": "healthy"}
+app.include_router(health_router)
