@@ -1,9 +1,14 @@
 from pathlib import Path
 from uuid import uuid4
+from zipfile import BadZipFile
 
+from docx import Document
+from docx.opc.exceptions import PackageNotFoundError
 from fastapi import UploadFile
+from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 
-from app.models.resume import ResumeUploadResponse
+from app.models.resume import ResumeTextResponse, ResumeUploadResponse
 
 
 STORAGE_DIRECTORY = (
@@ -20,7 +25,15 @@ ALLOWED_CONTENT_TYPES = {
 
 
 class UnsupportedResumeTypeError(ValueError):
-    """Raised when an uploaded file is not a supported resume type."""
+    """Raised when an uploaded or stored file is unsupported."""
+
+
+class ResumeNotFoundError(FileNotFoundError):
+    """Raised when a stored resume cannot be found."""
+
+
+class ResumeExtractionError(RuntimeError):
+    """Raised when resume text cannot be extracted."""
 
 
 async def store_resume(upload_file: UploadFile) -> ResumeUploadResponse:
@@ -60,4 +73,76 @@ async def store_resume(upload_file: UploadFile) -> ResumeUploadResponse:
         original_filename=original_filename,
         content_type=content_type,
         stored_filename=stored_filename,
+    )
+
+
+def _get_stored_resume_path(stored_filename: str) -> Path:
+    """Resolve a stored filename safely inside the resume storage directory."""
+    if not stored_filename:
+        raise ResumeNotFoundError("A stored filename is required.")
+
+    if Path(stored_filename).name != stored_filename:
+        raise UnsupportedResumeTypeError("Invalid stored filename.")
+
+    file_extension = Path(stored_filename).suffix.lower()
+
+    if file_extension not in ALLOWED_CONTENT_TYPES:
+        raise UnsupportedResumeTypeError(
+            "Only stored PDF and DOCX resumes are supported."
+        )
+
+    storage_directory = STORAGE_DIRECTORY.resolve()
+    resume_path = (storage_directory / stored_filename).resolve()
+
+    try:
+        resume_path.relative_to(storage_directory)
+    except ValueError as error:
+        raise UnsupportedResumeTypeError(
+            "Invalid stored filename."
+        ) from error
+
+    if not resume_path.is_file():
+        raise ResumeNotFoundError("The requested resume was not found.")
+
+    return resume_path
+
+
+def _extract_pdf_text(resume_path: Path) -> str:
+    reader = PdfReader(resume_path)
+    return "\n".join(
+        page.extract_text() or ""
+        for page in reader.pages
+    ).strip()
+
+
+def _extract_docx_text(resume_path: Path) -> str:
+    document = Document(resume_path)
+    return "\n".join(
+        paragraph.text
+        for paragraph in document.paragraphs
+    ).strip()
+
+
+def extract_resume_text(stored_filename: str) -> ResumeTextResponse:
+    """Extract raw text from an already-stored PDF or DOCX resume."""
+    resume_path = _get_stored_resume_path(stored_filename)
+
+    try:
+        if resume_path.suffix.lower() == ".pdf":
+            text = _extract_pdf_text(resume_path)
+        else:
+            text = _extract_docx_text(resume_path)
+    except (
+        PdfReadError,
+        BadZipFile,
+        PackageNotFoundError,
+        OSError,
+    ) as error:
+        raise ResumeExtractionError(
+            "The resume text could not be extracted."
+        ) from error
+
+    return ResumeTextResponse(
+        stored_filename=stored_filename,
+        text=text,
     )
