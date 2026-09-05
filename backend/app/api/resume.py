@@ -5,6 +5,7 @@ from app.models.resume import (
     ResumeUploadResponse,
     StructuredResume,
 )
+from app.models.skills import SkillExtractionResult
 from app.services.resume_parser import parse_resume_text
 from app.services.resume_service import (
     ResumeExtractionError,
@@ -13,6 +14,7 @@ from app.services.resume_service import (
     extract_resume_text,
     store_resume,
 )
+from app.services.skill_extractor import extract_skills
 
 router = APIRouter()
 
@@ -58,6 +60,23 @@ def read_parsed_resume(stored_filename: str) -> StructuredResume:
     try:
         extracted_resume = extract_resume_text(stored_filename)
         return parse_resume_text(extracted_resume.text)
+    except ResumeNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except UnsupportedResumeTypeError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except ResumeExtractionError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.get(
+    "/resume/{stored_filename}/skills",
+    response_model=SkillExtractionResult,
+)
+def read_resume_skills(stored_filename: str) -> SkillExtractionResult:
+    """Extract canonical skills from an already-stored resume."""
+    try:
+        extracted_resume = extract_resume_text(stored_filename)
+        return extract_skills(extracted_resume.text)
     except ResumeNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except UnsupportedResumeTypeError as error:
