@@ -1,6 +1,11 @@
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
-from app.models.resume import ResumeTextResponse, ResumeUploadResponse
+from app.models.resume import (
+    ResumeTextResponse,
+    ResumeUploadResponse,
+    StructuredResume,
+)
+from app.services.resume_parser import parse_resume_text
 from app.services.resume_service import (
     ResumeExtractionError,
     ResumeNotFoundError,
@@ -36,6 +41,23 @@ def read_resume_text(stored_filename: str) -> ResumeTextResponse:
     """Extract raw text from an already-stored resume."""
     try:
         return extract_resume_text(stored_filename)
+    except ResumeNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except UnsupportedResumeTypeError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except ResumeExtractionError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.get(
+    "/resume/{stored_filename}/parsed",
+    response_model=StructuredResume,
+)
+def read_parsed_resume(stored_filename: str) -> StructuredResume:
+    """Parse an already-stored resume into structured fields."""
+    try:
+        extracted_resume = extract_resume_text(stored_filename)
+        return parse_resume_text(extracted_resume.text)
     except ResumeNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except UnsupportedResumeTypeError as error:
