@@ -7,8 +7,12 @@ from docx.opc.exceptions import PackageNotFoundError
 from fastapi import UploadFile
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from app.models.resume import ResumeTextResponse, ResumeUploadResponse
+from app.repositories.resume_repository import ResumeRepository
+from app.repositories.user_repository import UserRepository
 
 
 STORAGE_DIRECTORY = (
@@ -36,8 +40,21 @@ class ResumeExtractionError(RuntimeError):
     """Raised when resume text cannot be extracted."""
 
 
-async def store_resume(upload_file: UploadFile) -> ResumeUploadResponse:
-    """Validate and store a resume in local development storage."""
+class UserNotFoundError(LookupError):
+    """Raised when a resume upload references a missing user."""
+
+
+async def store_resume(
+    upload_file: UploadFile,
+    user_id: int,
+    session: Session,
+) -> ResumeUploadResponse:
+    """Store a resume file and create its database record."""
+    user_repository = UserRepository(session)
+
+    if user_repository.get_by_id(user_id) is None:
+        raise UserNotFoundError("The specified user was not found.")
+
     original_filename = upload_file.filename
     content_type = upload_file.content_type
 
@@ -61,13 +78,33 @@ async def store_resume(upload_file: UploadFile) -> ResumeUploadResponse:
 
     stored_filename = f"{uuid4().hex}{file_extension}"
     destination = STORAGE_DIRECTORY / stored_filename
+    file_stored = False
 
     try:
         with destination.open("wb") as output_file:
             while chunk := await upload_file.read(1024 * 1024):
                 output_file.write(chunk)
+
+        file_stored = True
     finally:
         await upload_file.close()
+
+    try:
+        resume_repository = ResumeRepository(session)
+        resume_repository.create(
+            user_id=user_id,
+            original_filename=original_filename,
+            stored_filename=stored_filename,
+            content_type=content_type,
+        )
+    except SQLAlchemyError:
+        if file_stored:
+            try:
+                destination.unlink()
+            except OSError:
+                pass
+
+        raise
 
     return ResumeUploadResponse(
         original_filename=original_filename,

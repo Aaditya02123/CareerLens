@@ -1,5 +1,8 @@
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
+from app.core.database import get_db
 from app.models.resume import (
     ResumeAnalysisResponse,
     ResumeTextResponse,
@@ -13,6 +16,7 @@ from app.services.resume_service import (
     ResumeExtractionError,
     ResumeNotFoundError,
     UnsupportedResumeTypeError,
+    UserNotFoundError,
     extract_resume_text,
     store_resume,
 )
@@ -23,13 +27,29 @@ router = APIRouter()
 
 @router.post("/resume", response_model=ResumeUploadResponse)
 async def upload_resume(
+    user_id: int,
     file: UploadFile = File(...),
+    db: Session = Depends(get_db),
 ) -> ResumeUploadResponse:
-    """Receive and store a resume file."""
+    """Receive, store, and register a resume for a user."""
     try:
-        return await store_resume(file)
+        return await store_resume(
+            upload_file=file,
+            user_id=user_id,
+            session=db,
+        )
+    except UserNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail="The specified user was not found.",
+        ) from error
     except UnsupportedResumeTypeError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=500,
+            detail="The resume could not be registered.",
+        ) from error
     except OSError as error:
         raise HTTPException(
             status_code=500,
