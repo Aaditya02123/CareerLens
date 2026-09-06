@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.resume import (
     ResumeAnalysisResponse,
+    ResumeResponse,
     ResumeTextResponse,
     ResumeUploadResponse,
     StructuredResume,
@@ -18,6 +19,7 @@ from app.services.resume_service import (
     UnsupportedResumeTypeError,
     UserNotFoundError,
     extract_resume_text,
+    get_resumes_by_user_id,
     store_resume,
 )
 from app.services.skill_extractor import extract_skills
@@ -55,6 +57,32 @@ async def upload_resume(
             status_code=500,
             detail="The resume could not be stored.",
         ) from error
+
+
+@router.get(
+    "/users/{user_id}/resumes",
+    response_model=list[ResumeResponse],
+)
+def get_user_resumes(
+    user_id: int,
+    db: Session = Depends(get_db),
+) -> list[ResumeResponse]:
+    """Return all resumes belonging to a user."""
+    try:
+        resumes = get_resumes_by_user_id(
+            user_id=user_id,
+            session=db,
+        )
+    except UserNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail="The specified user was not found.",
+        ) from error
+
+    return [
+        ResumeResponse.model_validate(resume)
+        for resume in resumes
+    ]
 
 
 @router.get(

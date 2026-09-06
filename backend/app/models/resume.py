@@ -69,6 +69,19 @@ class ResumeTextResponse(BaseModel):
     text: str
 
 
+class ResumeResponse(BaseModel):
+    """API response schema for a stored resume record."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    original_filename: str
+    stored_filename: str
+    content_type: str
+    created_at: datetime
+
+
 class StructuredResume(BaseModel):
     name: str | None = None
     email: str | None = None
@@ -77,6 +90,7 @@ class StructuredResume(BaseModel):
     experience: list[str] = Field(default_factory=list)
     projects: list[str] = Field(default_factory=list)
     certifications: list[str] = Field(default_factory=list)
+
 
 class ResumeAnalysisResponse(BaseModel):
     structured_resume: StructuredResume

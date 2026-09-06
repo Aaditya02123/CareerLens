@@ -10,7 +10,11 @@ from pypdf.errors import PdfReadError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.models.resume import ResumeTextResponse, ResumeUploadResponse
+from app.models.resume import (
+    Resume,
+    ResumeTextResponse,
+    ResumeUploadResponse,
+)
 from app.repositories.resume_repository import ResumeRepository
 from app.repositories.user_repository import UserRepository
 
@@ -41,7 +45,7 @@ class ResumeExtractionError(RuntimeError):
 
 
 class UserNotFoundError(LookupError):
-    """Raised when a resume upload references a missing user."""
+    """Raised when a resume operation references a missing user."""
 
 
 async def store_resume(
@@ -111,6 +115,20 @@ async def store_resume(
         content_type=content_type,
         stored_filename=stored_filename,
     )
+
+
+def get_resumes_by_user_id(
+    user_id: int,
+    session: Session,
+) -> list[Resume]:
+    """Return all resumes belonging to an existing user."""
+    user_repository = UserRepository(session)
+
+    if user_repository.get_by_id(user_id) is None:
+        raise UserNotFoundError("The specified user was not found.")
+
+    resume_repository = ResumeRepository(session)
+    return resume_repository.get_by_user_id(user_id)
 
 
 def _get_stored_resume_path(stored_filename: str) -> Path:
