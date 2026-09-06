@@ -6,6 +6,7 @@ from app.api.jobs import router as jobs_router
 from app.api.matching import router as matching_router
 from app.api.profile import router as profile_router
 from app.api.resume import router as resume_router
+from app.api.semantic_matching import router as semantic_matching_router
 from app.api.users import router as users_router
 
 app = FastAPI(title="CareerLens API")
@@ -23,3 +24,4 @@ app.include_router(resume_router)
 app.include_router(users_router)
 app.include_router(jobs_router)
 app.include_router(matching_router)
+app.include_router(semantic_matching_router)
