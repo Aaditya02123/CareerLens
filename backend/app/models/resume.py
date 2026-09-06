@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-
+from app.models.skills import CategorizedSkillResult
 class ResumeUploadResponse(BaseModel):
     original_filename : str
     content_type : str
@@ -17,3 +17,6 @@ class StructuredResume(BaseModel):
     experience: list[str] = Field(default_factory=list)
     projects: list[str] = Field(default_factory=list)
     certifications: list[str] = Field(default_factory=list)
+class ResumeAnalysisResponse(BaseModel):
+    structured_resume: StructuredResume
+    categorized_skills: CategorizedSkillResult

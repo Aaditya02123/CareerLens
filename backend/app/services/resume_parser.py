@@ -16,6 +16,8 @@ SECTION_HEADINGS = {
         "experience",
         "work experience",
         "professional experience",
+        "internship",
+        "internships",
     },
     "projects": {
         "projects",
@@ -24,7 +26,21 @@ SECTION_HEADINGS = {
     "certifications": {
         "certifications",
         "certificates",
+        "certifications & achievements",
+        "achievements",
     },
+}
+
+SKILL_SUBSECTION_LABELS = {
+    "languages",
+    "frameworks/libraries",
+    "frameworks",
+    "libraries",
+    "databases",
+    "ai/tools",
+    "ai",
+    "tools",
+    "core cs",
 }
 
 EMAIL_PATTERN = re.compile(
@@ -41,9 +57,14 @@ def _normalize_lines(text: str) -> list[str]:
     ]
 
 
+def _normalize_heading(line: str) -> str:
+    """Normalize a possible heading for case-insensitive comparison."""
+    return re.sub(r"[:\s]+$", "", line).strip().lower()
+
+
 def _heading_for(line: str) -> str | None:
-    """Return the section name if the line is a recognized heading."""
-    normalized_line = re.sub(r"[:\s]+$", "", line).strip().lower()
+    """Return the section name if the line is an exact recognized heading."""
+    normalized_line = _normalize_heading(line)
 
     for section_name, headings in SECTION_HEADINGS.items():
         if normalized_line in headings:
@@ -53,7 +74,7 @@ def _heading_for(line: str) -> str | None:
 
 
 def _extract_sections(lines: list[str]) -> dict[str, list[str]]:
-    """Collect lines under each recognized section heading."""
+    """Collect lines under each recognized top-level section heading."""
     sections = {
         "skills": [],
         "education": [],
@@ -81,18 +102,41 @@ def _clean_entry(line: str) -> str:
     return re.sub(r"^\s*(?:[-*•]\s*)+", "", line).strip()
 
 
+def _normalize_skill_subsection_label(label: str) -> str:
+    """Normalize spacing and case in a skill subsection label."""
+    normalized_label = re.sub(r"\s*/\s*", "/", label.strip().lower())
+    return re.sub(r"\s+", " ", normalized_label)
+
+
+def _remove_skill_subsection_label(line: str) -> str:
+    """Remove a known skill subsection label before its values."""
+    cleaned_line = _clean_entry(line)
+    label, separator, values = cleaned_line.partition(":")
+
+    normalized_label = _normalize_skill_subsection_label(label)
+
+    if separator and normalized_label in SKILL_SUBSECTION_LABELS:
+        return values.strip()
+
+    return cleaned_line
+
+
 def _split_skills(lines: list[str]) -> list[str]:
-    """Split obvious comma, pipe, and bullet-separated skill values."""
+    """Split skill subsections and their comma- or bullet-separated values."""
     skills = []
 
     for line in lines:
-        cleaned_line = _clean_entry(line)
+        for subsection in line.split("|"):
+            skill_values = _remove_skill_subsection_label(subsection)
 
-        for skill in re.split(r"[,|•]", cleaned_line):
-            cleaned_skill = _clean_entry(skill)
+            if not skill_values:
+                continue
 
-            if cleaned_skill:
-                skills.append(cleaned_skill)
+            for skill in re.split(r"[,•]", skill_values):
+                cleaned_skill = _clean_entry(skill)
+
+                if cleaned_skill:
+                    skills.append(cleaned_skill)
 
     return skills
 
