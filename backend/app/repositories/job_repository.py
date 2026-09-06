@@ -68,6 +68,23 @@ class JobRepository:
         )
         return self.session.scalar(statement)
 
+    def find_candidates(
+        self,
+        title: str,
+        company: str | None,
+        location: str | None,
+    ) -> list[Job]:
+        """Find likely duplicate candidates using database-side filters."""
+        statement = select(Job).where(Job.title == title)
+
+        if company is not None:
+            statement = statement.where(Job.company == company)
+
+        if location is not None:
+            statement = statement.where(Job.location == location)
+
+        return list(self.session.scalars(statement.limit(100)).all())
+
     def list_jobs(
         self,
         limit: int,

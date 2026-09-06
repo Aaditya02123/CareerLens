@@ -4,7 +4,11 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.jobs import JobCreate, JobResponse
-from app.services.job_service import JobNotFoundError, JobService
+from app.services.job_service import (
+    JobDuplicateError,
+    JobNotFoundError,
+    JobService,
+)
 
 router = APIRouter()
 
@@ -23,6 +27,11 @@ def create_job(
 
     try:
         job = service.create_job(job_data)
+    except JobDuplicateError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
