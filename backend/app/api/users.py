@@ -33,3 +33,25 @@ def create_user(
         ) from error
 
     return UserResponse.model_validate(user)
+
+
+@router.get(
+    "/users/{user_id}",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    """Retrieve a user by ID."""
+    user_service = UserService(db)
+    user = user_service.get_user_by_id(user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    return UserResponse.model_validate(user)

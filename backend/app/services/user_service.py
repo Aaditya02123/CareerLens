@@ -13,3 +13,7 @@ class UserService:
     def create_user(self, email: str, name: str) -> User:
         """Create a user through the repository."""
         return self.repository.create(email=email, name=name)
+
+    def get_user_by_id(self, user_id: int) -> User | None:
+        """Return a user by ID, if one exists."""
+        return self.repository.get_by_id(user_id)
