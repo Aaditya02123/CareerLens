@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -33,3 +34,21 @@ class User(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+
+class UserCreate(BaseModel):
+    """Request schema for creating a user."""
+
+    email: str
+    name: str
+
+
+class UserResponse(BaseModel):
+    """Response schema for a user."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+    name: str
+    created_at: datetime
