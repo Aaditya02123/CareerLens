@@ -1,6 +1,7 @@
 import re
 
 from app.models.skills import SkillExtractionResult
+from app.services.skill_normalizer import normalize_skills
 
 
 SKILL_VOCABULARY = (
@@ -61,13 +62,15 @@ def _normalize_text(text: str) -> str:
 
 
 def extract_skills(text: str) -> SkillExtractionResult:
-    """Extract canonical skills from the entire resume text."""
+    """Extract and normalize canonical skills from resume text."""
     normalized_text = _normalize_text(text)
 
-    matched_skills = [
+    detected_skills = [
         skill
         for skill in SKILL_VOCABULARY
         if SKILL_PATTERNS[skill].search(normalized_text)
     ]
 
-    return SkillExtractionResult(skills=matched_skills)
+    return SkillExtractionResult(
+        skills=normalize_skills(detected_skills)
+    )
