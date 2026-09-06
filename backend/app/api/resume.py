@@ -11,7 +11,10 @@ from app.models.resume import (
     StructuredResume,
 )
 from app.models.skills import SkillExtractionResult
-from app.services.resume_analysis_service import analyze_resume
+from app.services.resume_analysis_service import (
+    ResumeRecordNotFoundError,
+    analyze_resume,
+)
 from app.services.resume_parser import parse_resume_text
 from app.services.resume_service import (
     ResumeExtractionError,
@@ -139,13 +142,26 @@ def read_resume_skills(stored_filename: str) -> SkillExtractionResult:
     "/resume/{stored_filename}/analysis",
     response_model=ResumeAnalysisResponse,
 )
-def read_resume_analysis(stored_filename: str) -> ResumeAnalysisResponse:
-    """Return the consolidated analysis for an already-stored resume."""
+def read_resume_analysis(
+    stored_filename: str,
+    db: Session = Depends(get_db),
+) -> ResumeAnalysisResponse:
+    """Analyze and persist the latest analysis for a stored resume."""
     try:
-        return analyze_resume(stored_filename)
+        return analyze_resume(
+            stored_filename=stored_filename,
+            session=db,
+        )
     except ResumeNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except ResumeRecordNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except UnsupportedResumeTypeError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except ResumeExtractionError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=500,
+            detail="The resume analysis could not be persisted.",
+        ) from error

@@ -11,6 +11,7 @@ from app.core.database import Base
 from app.models.skills import CategorizedSkillResult
 
 if TYPE_CHECKING:
+    from app.models.resume_analysis import ResumeAnalysis
     from app.models.user import User
 
 
@@ -57,6 +58,14 @@ class Resume(Base):
         back_populates="resumes",
     )
 
+    analysis: Mapped[ResumeAnalysis | None] = relationship(
+        "ResumeAnalysis",
+        back_populates="resume",
+        uselist=False,
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
 
 class ResumeUploadResponse(BaseModel):
     original_filename: str
@@ -70,8 +79,6 @@ class ResumeTextResponse(BaseModel):
 
 
 class ResumeResponse(BaseModel):
-    """API response schema for a stored resume record."""
-
     model_config = ConfigDict(from_attributes=True)
 
     id: int

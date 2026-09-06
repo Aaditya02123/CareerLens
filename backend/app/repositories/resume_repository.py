@@ -51,3 +51,13 @@ class ResumeRepository:
         )
 
         return list(self.session.scalars(statement).all())
+
+    def get_by_stored_filename(
+        self,
+        stored_filename: str,
+    ) -> Resume | None:
+        """Return a resume by its generated stored filename."""
+        statement = select(Resume).where(
+            Resume.stored_filename == stored_filename
+        )
+        return self.session.scalar(statement)
