@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.health import router as health_router
 from app.api.hybrid_matching import router as hybrid_matching_router
 from app.api.job_ranking import router as job_ranking_router
+from app.api.job_recommendation import router as job_recommendation_router
 from app.api.jobs import router as jobs_router
 from app.api.match_explaination import router as match_explanation_router
 from app.api.matching import router as matching_router
@@ -31,3 +32,4 @@ app.include_router(semantic_matching_router)
 app.include_router(hybrid_matching_router)
 app.include_router(job_ranking_router)
 app.include_router(match_explanation_router)
+app.include_router(job_recommendation_router)
