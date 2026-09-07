@@ -78,15 +78,23 @@ def get_job(
     response_model=list[JobResponse],
 )
 def list_jobs(
-    limit: int = 100,
+    title: str | None = None,
+    location: str | None = None,
+    experience_level: str | None = None,
+    source: str | None = None,
+    limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
 ) -> list[JobResponse]:
-    """Return a paginated list of jobs."""
+    """Return a filtered and paginated list of jobs."""
     service = JobService(db)
 
     try:
         jobs = service.list_jobs(
+            title=title,
+            location=location,
+            experience_level=experience_level,
+            source=source,
             limit=limit,
             offset=offset,
         )

@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -87,12 +87,38 @@ class JobRepository:
 
     def list_jobs(
         self,
-        limit: int,
-        offset: int,
+        title: str | None = None,
+        location: str | None = None,
+        experience_level: str | None = None,
+        source: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
     ) -> list[Job]:
-        """Return jobs using simple limit and offset pagination."""
+        """Return jobs with optional deterministic filters."""
+        statement = select(Job)
+
+        if title is not None:
+            statement = statement.where(
+                func.lower(Job.title).contains(title)
+            )
+
+        if location is not None:
+            statement = statement.where(
+                func.lower(Job.location).contains(location)
+            )
+
+        if experience_level is not None:
+            statement = statement.where(
+                func.lower(Job.experience_level) == experience_level
+            )
+
+        if source is not None:
+            statement = statement.where(
+                func.lower(Job.source) == source
+            )
+
         statement = (
-            select(Job)
+            statement
             .order_by(Job.created_at.desc(), Job.id.desc())
             .limit(limit)
             .offset(offset)

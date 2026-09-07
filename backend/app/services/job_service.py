@@ -3,7 +3,10 @@ from sqlalchemy.orm import Session
 from app.models.jobs import Job, JobCreate
 from app.repositories.job_repository import JobRepository
 from app.services.job_duplicate_detector import JobDuplicateDetector
-from app.services.job_normalizer import normalize_job_data
+from app.services.job_normalizer import (
+    normalize_comparison_value,
+    normalize_job_data,
+)
 
 
 class JobNotFoundError(LookupError):
@@ -65,17 +68,35 @@ class JobService:
 
     def list_jobs(
         self,
-        limit: int = 100,
+        title: str | None = None,
+        location: str | None = None,
+        experience_level: str | None = None,
+        source: str | None = None,
+        limit: int = 50,
         offset: int = 0,
     ) -> list[Job]:
-        """Return a page of jobs."""
-        if limit < 1 or limit > 100:
-            raise ValueError("Limit must be between 1 and 100.")
+        """Return a filtered and ordered page of jobs."""
+        if limit <= 0:
+            raise ValueError("Limit must be greater than zero.")
+
+        if limit > 100:
+            raise ValueError("Limit cannot be greater than 100.")
 
         if offset < 0:
             raise ValueError("Offset cannot be negative.")
 
+        normalized_title = normalize_comparison_value(title)
+        normalized_location = normalize_comparison_value(location)
+        normalized_experience_level = normalize_comparison_value(
+            experience_level
+        )
+        normalized_source = normalize_comparison_value(source)
+
         return self.repository.list_jobs(
+            title=normalized_title,
+            location=normalized_location,
+            experience_level=normalized_experience_level,
+            source=normalized_source,
             limit=limit,
             offset=offset,
         )
