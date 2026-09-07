@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.health import router as health_router
+from app.api.hybrid_matching import router as hybrid_matching_router
 from app.api.jobs import router as jobs_router
 from app.api.matching import router as matching_router
 from app.api.profile import router as profile_router
@@ -25,3 +26,4 @@ app.include_router(users_router)
 app.include_router(jobs_router)
 app.include_router(matching_router)
 app.include_router(semantic_matching_router)
+app.include_router(hybrid_matching_router)
