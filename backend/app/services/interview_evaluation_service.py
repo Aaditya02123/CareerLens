@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -13,6 +14,10 @@ from app.repositories.resume_analysis_repository import (
     ResumeAnalysisRepository,
 )
 from app.repositories.resume_repository import ResumeRepository
+from app.services.llm.interview_evaluator import InterviewEvaluator
+from app.services.llm.providers import (
+    OpenAICompatibleInterviewProvider,
+)
 
 
 STOPWORDS = {
@@ -155,10 +160,7 @@ def _overall_score(
             + technical_score * 0.40
         )
 
-    return (
-        relevance_score * 0.55
-        + completeness_score * 0.45
-    )
+    return relevance_score * 0.55 + completeness_score * 0.45
 
 
 def _build_feedback(
@@ -307,4 +309,84 @@ def evaluate_answer(
         overall_score=overall_score,
         strengths=strengths,
         improvements=improvements,
+    )
+
+
+def evaluate_answer_with_llm(
+    session_id: int,
+    answer_id: int,
+    session: Session,
+    evaluator: InterviewEvaluator | None = None,
+) -> InterviewEvaluationResponse:
+    """Evaluate an answer through the separate LLM evaluation path."""
+    session_repository = InterviewSessionRepository(session)
+    interview_session = session_repository.get_by_id(session_id)
+
+    if interview_session is None:
+        raise InterviewSessionNotFoundError(
+            "The requested interview session was not found."
+        )
+
+    answer = _get_answer_for_session(
+        repository=session_repository,
+        session_id=session_id,
+        answer_id=answer_id,
+    )
+
+    resume = ResumeRepository(session).get_by_id(
+        interview_session.resume_id
+    )
+    if resume is None:
+        raise ResumeNotFoundError(
+            "The session's resume was not found."
+        )
+
+    job = JobRepository(session).get_by_id(
+        interview_session.job_id
+    )
+    if job is None:
+        raise JobNotFoundError(
+            "The session's job was not found."
+        )
+
+    analysis = ResumeAnalysisRepository(session).get_by_resume_id(
+        resume.id
+    )
+    if analysis is None:
+        raise ResumeAnalysisNotFoundError(
+            "No persisted resume analysis was found."
+        )
+
+    structured_resume = StructuredResume.model_validate(
+        analysis.structured_resume
+    )
+
+    context: dict[str, Any] = {
+        "question": answer.question,
+        "answer": answer.answer,
+        "question_category": answer.question_category,
+        "job": {
+            "title": job.title,
+            "description": job.description,
+            "required_skills": job.required_skills,
+        },
+        "structured_resume": structured_resume.model_dump(
+            mode="json"
+        ),
+    }
+
+    active_evaluator = evaluator or InterviewEvaluator(
+        provider=OpenAICompatibleInterviewProvider()
+    )
+    result = active_evaluator.evaluate(context)
+
+    return InterviewEvaluationResponse(
+        session_id=session_id,
+        answer_id=answer_id,
+        relevance_score=result.relevance_score,
+        completeness_score=result.completeness_score,
+        technical_score=result.technical_score,
+        overall_score=result.overall_score,
+        strengths=result.strengths,
+        improvements=result.improvements,
     )
