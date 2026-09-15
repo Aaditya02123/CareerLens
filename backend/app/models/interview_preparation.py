@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class InterviewQuestion(BaseModel):
-    """A deterministic interview question."""
+    """A deterministic interview question with explanatory metadata."""
 
     question: str
     category: Literal[
@@ -14,6 +14,8 @@ class InterviewQuestion(BaseModel):
         "job_specific",
     ]
     difficulty: Literal["easy", "medium", "hard"]
+    priority: Literal["high", "medium", "low"]
+    reason: str
 
 
 class InterviewPreparationResponse(BaseModel):

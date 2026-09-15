@@ -23,6 +23,19 @@ BEHAVIORAL_LIMIT = 5
 JOB_SPECIFIC_LIMIT = 10
 TOTAL_LIMIT = 30
 
+PRIORITY_ORDER = {
+    "high": 0,
+    "medium": 1,
+    "low": 2,
+}
+
+CATEGORY_ORDER = {
+    "technical": 0,
+    "job_specific": 1,
+    "resume_based": 2,
+    "behavioral": 3,
+}
+
 
 def _add_question(
     questions: list[InterviewQuestion],
@@ -61,15 +74,71 @@ def _resume_skill_names(analysis: ResumeAnalysis) -> list[str]:
     return names
 
 
+def _missing_required_skill(
+    skill: str,
+    resume_skill_keys: set[str],
+) -> bool:
+    """Determine whether a required skill is absent from the resume."""
+    return skill.strip().casefold() not in resume_skill_keys
+
+
+def _matching_missing_skill(
+    text: str,
+    missing_required_skills: list[str],
+) -> str | None:
+    """Find a missing required skill explicitly referenced in text."""
+    normalized_text = text.casefold()
+
+    for skill in missing_required_skills:
+        if skill.casefold() in normalized_text:
+            return skill
+
+    return None
+
+
 def _generate_technical_questions(
     job_required_skills: list[str],
+    resume_skill_names: list[str],
     questions: list[InterviewQuestion],
     seen_questions: set[str],
 ) -> None:
     """Generate questions from required job skills."""
-    for skill in job_required_skills[:TECHNICAL_LIMIT]:
-        if not skill.strip():
+    resume_skill_keys = {
+        skill.casefold()
+        for skill in resume_skill_names
+    }
+
+    unique_skills: list[str] = []
+    seen_skills: set[str] = set()
+
+    for skill in job_required_skills:
+        cleaned_skill = skill.strip()
+        comparison_value = cleaned_skill.casefold()
+
+        if not cleaned_skill or comparison_value in seen_skills:
             continue
+
+        seen_skills.add(comparison_value)
+        unique_skills.append(cleaned_skill)
+
+    for skill in unique_skills[:TECHNICAL_LIMIT]:
+        is_missing = _missing_required_skill(
+            skill=skill,
+            resume_skill_keys=resume_skill_keys,
+        )
+
+        if is_missing:
+            priority = "high"
+            reason = (
+                f"{skill} is listed as a required skill for this job "
+                "but is not present in the resume."
+            )
+        else:
+            priority = "medium"
+            reason = (
+                f"{skill} is listed as a required skill for this job "
+                "and appears in the resume."
+            )
 
         _add_question(
             questions=questions,
@@ -81,6 +150,8 @@ def _generate_technical_questions(
                 ),
                 category="technical",
                 difficulty="medium",
+                priority=priority,
+                reason=reason,
             ),
         )
 
@@ -108,6 +179,9 @@ def _generate_resume_questions(
                 ),
                 category="resume_based",
                 difficulty="medium",
+                priority="medium",
+                reason="This question is based on a project listed "
+                "in the resume.",
             ),
         )
         generated_count += 1
@@ -126,6 +200,9 @@ def _generate_resume_questions(
                 ),
                 category="resume_based",
                 difficulty="medium",
+                priority="medium",
+                reason="This question is based on experience listed "
+                "in the resume.",
             ),
         )
         generated_count += 1
@@ -144,6 +221,9 @@ def _generate_resume_questions(
                 ),
                 category="resume_based",
                 difficulty="easy",
+                priority="medium",
+                reason="This question is based on a certification "
+                "listed in the resume.",
             ),
         )
         generated_count += 1
@@ -162,6 +242,8 @@ def _generate_resume_questions(
                 ),
                 category="resume_based",
                 difficulty="medium",
+                priority="medium",
+                reason=f"{skill} appears in the candidate's resume.",
             ),
         )
         generated_count += 1
@@ -190,6 +272,11 @@ def _generate_behavioral_questions(
                 question=question_text,
                 category="behavioral",
                 difficulty="easy",
+                priority="low",
+                reason=(
+                    "This question evaluates a general behavioral "
+                    "competency relevant to interviews."
+                ),
             ),
         )
 
@@ -197,6 +284,7 @@ def _generate_behavioral_questions(
 def _generate_job_questions(
     job_responsibilities: list[str],
     job_description: str,
+    missing_required_skills: list[str],
     questions: list[InterviewQuestion],
     seen_questions: set[str],
 ) -> None:
@@ -211,6 +299,24 @@ def _generate_job_questions(
         source_items = [job_description.strip()]
 
     for item in source_items[:JOB_SPECIFIC_LIMIT]:
+        related_missing_skill = _matching_missing_skill(
+            text=item,
+            missing_required_skills=missing_required_skills,
+        )
+
+        if related_missing_skill is not None:
+            priority = "high"
+            reason = (
+                f"This job responsibility is directly related to the "
+                f"missing required skill {related_missing_skill}."
+            )
+        else:
+            priority = "medium"
+            reason = (
+                "This question is based on a responsibility or "
+                "expectation listed for the job."
+            )
+
         _add_question(
             questions=questions,
             seen_questions=seen_questions,
@@ -221,8 +327,23 @@ def _generate_job_questions(
                 ),
                 category="job_specific",
                 difficulty="medium",
+                priority=priority,
+                reason=reason,
             ),
         )
+
+
+def _sort_questions(
+    questions: list[InterviewQuestion],
+) -> list[InterviewQuestion]:
+    """Sort by priority, category, and original stable order."""
+    return sorted(
+        questions,
+        key=lambda question: (
+            PRIORITY_ORDER[question.priority],
+            CATEGORY_ORDER[question.category],
+        ),
+    )
 
 
 def build_interview_preparation(
@@ -255,6 +376,7 @@ def build_interview_preparation(
 
     _generate_technical_questions(
         job_required_skills=job.required_skills,
+        resume_skill_names=categorized_skill_names,
         questions=questions,
         seen_questions=seen_questions,
     )
@@ -271,15 +393,29 @@ def build_interview_preparation(
         seen_questions=seen_questions,
     )
 
+    resume_skill_keys = {
+        skill.casefold()
+        for skill in categorized_skill_names
+    }
+    missing_required_skills = [
+        skill
+        for skill in job.required_skills
+        if skill.strip()
+        and skill.casefold() not in resume_skill_keys
+    ]
+
     _generate_job_questions(
         job_responsibilities=job.responsibilities,
         job_description=job.description,
+        missing_required_skills=missing_required_skills,
         questions=questions,
         seen_questions=seen_questions,
     )
 
+    sorted_questions = _sort_questions(questions)
+
     return InterviewPreparationResponse(
         resume_id=resume_id,
         job_id=job_id,
-        questions=questions[:TOTAL_LIMIT],
+        questions=sorted_questions[:TOTAL_LIMIT],
     )
