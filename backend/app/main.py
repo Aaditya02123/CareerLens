@@ -6,6 +6,7 @@ from app.api.health import router as health_router
 from app.api.hybrid_matching import router as hybrid_matching_router
 from app.api.interview_evaluation import (router as interview_evaluation_router,)
 from app.api.interview_preparation import (router as interview_preparation_router,)
+from app.api.interview_report import (router as interview_report_router,)
 from app.api.interview_sessions import (router as interview_sessions_router,)
 from app.api.job_ranking import router as job_ranking_router
 from app.api.job_recommendation import router as job_recommendation_router
@@ -43,3 +44,4 @@ app.include_router(applications_router)
 app.include_router(interview_preparation_router)
 app.include_router(interview_sessions_router)
 app.include_router(interview_evaluation_router)
+app.include_router(interview_report_router)
