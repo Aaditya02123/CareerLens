@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.applications import router as applications_router
 from app.api.health import router as health_router
 from app.api.hybrid_matching import router as hybrid_matching_router
 from app.api.job_ranking import router as job_ranking_router
@@ -19,7 +20,7 @@ app = FastAPI(title="CareerLens API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:5173"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["*"],
 )
 
@@ -35,3 +36,4 @@ app.include_router(job_ranking_router)
 app.include_router(match_explanation_router)
 app.include_router(job_recommendation_router)
 app.include_router(learning_roadmap_router)
+app.include_router(applications_router)
