@@ -95,6 +95,16 @@ class FakeRepository:
         self.next_answer_id += 1
         return item
 
+    def answer_exists_for_question(
+        self,
+        session_id: int,
+        question_id: int,
+    ) -> bool:
+        return any(
+            answer.question_id == question_id
+            for answer in self.answers.get(session_id, [])
+        )
+
     def list_answers_by_session_id(self, session_id):
         return self.answers.get(session_id, [])
 

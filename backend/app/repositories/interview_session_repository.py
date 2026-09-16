@@ -1,6 +1,8 @@
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
+
+from psycopg.errors import UniqueViolation
 
 from app.models.interview_preparation import (
     InterviewQuestion as GeneratedQuestion,
@@ -11,6 +13,32 @@ from app.models.interview_session import (
     InterviewSession,
     InterviewSessionStatus,
 )
+
+
+DUPLICATE_ANSWER_CONSTRAINT = (
+    "uq_interview_answers_session_question"
+)
+
+
+class DuplicateInterviewAnswerError(ValueError):
+    """Raised when a question already has an answer in a session."""
+
+
+def _is_duplicate_answer_violation(error: IntegrityError) -> bool:
+    """Identify only the intended PostgreSQL unique constraint error."""
+    original_error = error.orig
+
+    if not isinstance(original_error, UniqueViolation):
+        return False
+
+    diagnostic = getattr(original_error, "diag", None)
+    constraint_name = getattr(
+        diagnostic,
+        "constraint_name",
+        None,
+    )
+
+    return constraint_name == DUPLICATE_ANSWER_CONSTRAINT
 
 
 class InterviewSessionRepository:
@@ -36,7 +64,10 @@ class InterviewSessionRepository:
         try:
             self.session.flush()
 
-            for order, generated in enumerate(questions, start=1):
+            for question_order, generated in enumerate(
+                questions,
+                start=1,
+            ):
                 self.session.add(
                     InterviewQuestion(
                         session_id=interview_session.id,
@@ -45,7 +76,7 @@ class InterviewSessionRepository:
                         difficulty=generated.difficulty,
                         priority=generated.priority,
                         reason=generated.reason,
-                        question_order=order,
+                        question_order=question_order,
                     )
                 )
 
@@ -101,6 +132,17 @@ class InterviewSessionRepository:
             )
         )
 
+    def answer_exists_for_question(
+        self,
+        session_id: int,
+        question_id: int,
+    ) -> bool:
+        statement = select(InterviewAnswer.id).where(
+            InterviewAnswer.session_id == session_id,
+            InterviewAnswer.question_id == question_id,
+        )
+        return self.session.scalar(statement) is not None
+
     def list_questions_by_session_id(
         self,
         session_id: int,
@@ -132,6 +174,15 @@ class InterviewSessionRepository:
 
         try:
             self.session.commit()
+        except IntegrityError as error:
+            self.session.rollback()
+
+            if _is_duplicate_answer_violation(error):
+                raise DuplicateInterviewAnswerError(
+                    "This interview question already has an answer."
+                ) from error
+
+            raise
         except SQLAlchemyError:
             self.session.rollback()
             raise

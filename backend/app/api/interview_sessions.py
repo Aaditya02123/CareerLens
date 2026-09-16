@@ -16,6 +16,7 @@ from app.services.hybrid_matching_service import (
     ResumeAnalysisNotFoundError,
 )
 from app.services.interview_session_service import (
+    DuplicateInterviewAnswerError,
     InactiveInterviewSessionError,
     InterviewQuestionNotFoundError,
     InterviewQuestionOwnershipError,
@@ -53,40 +54,13 @@ def create_interview_session(
         JobNotFoundError,
         ResumeAnalysisNotFoundError,
     ) as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(error),
-        ) from error
-    except ResumeOwnershipError as error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(error),
-        ) from error
-    except SQLAlchemyError as error:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="The interview session could not be created.",
-        ) from error
-
-    return InterviewSessionResponse.model_validate(result)
-
-
-@router.get(
-    "/interview-sessions/{session_id}",
-    response_model=InterviewSessionResponse,
-)
-def get_interview_session(
-    session_id: int,
-    db: Session = Depends(get_db),
-) -> InterviewSessionResponse:
-    try:
-        result = InterviewSessionService(db).get_session(session_id)
-    except InterviewSessionNotFoundError as error:
         raise HTTPException(404, str(error)) from error
+    except ResumeOwnershipError as error:
+        raise HTTPException(400, str(error)) from error
     except SQLAlchemyError as error:
         raise HTTPException(
             500,
-            "The interview session could not be retrieved.",
+            "The interview session could not be created.",
         ) from error
 
     return InterviewSessionResponse.model_validate(result)
@@ -111,59 +85,6 @@ def list_interview_questions(
         ) from error
 
 
-@router.get(
-    "/users/{user_id}/interview-sessions",
-    response_model=list[InterviewSessionResponse],
-)
-def list_user_interview_sessions(
-    user_id: int,
-    db: Session = Depends(get_db),
-) -> list[InterviewSessionResponse]:
-    try:
-        sessions = InterviewSessionService(db).list_sessions_for_user(
-            user_id
-        )
-    except UserNotFoundError as error:
-        raise HTTPException(404, str(error)) from error
-    except SQLAlchemyError as error:
-        raise HTTPException(
-            500,
-            "The interview sessions could not be retrieved.",
-        ) from error
-
-    return [
-        InterviewSessionResponse.model_validate(item)
-        for item in sessions
-    ]
-
-
-@router.patch(
-    "/interview-sessions/{session_id}/status",
-    response_model=InterviewSessionResponse,
-)
-def update_interview_session_status(
-    session_id: int,
-    status_data: InterviewSessionStatusUpdate,
-    db: Session = Depends(get_db),
-) -> InterviewSessionResponse:
-    try:
-        result = InterviewSessionService(db).update_session_status(
-            session_id=session_id,
-            new_status=status_data.status,
-        )
-    except InterviewSessionNotFoundError as error:
-        raise HTTPException(404, str(error)) from error
-    except ValueError as error:
-        raise HTTPException(400, str(error)) from error
-    except SQLAlchemyError as error:
-        raise HTTPException(
-            500,
-            "The interview session status could not be updated.",
-        ) from error
-
-    return InterviewSessionResponse.model_validate(result)
-
-
 @router.post(
     "/interview-sessions/{session_id}/answers",
     response_model=InterviewAnswerResponse,
@@ -183,6 +104,8 @@ def submit_interview_answer(
         raise HTTPException(404, str(error)) from error
     except InterviewQuestionNotFoundError as error:
         raise HTTPException(404, str(error)) from error
+    except DuplicateInterviewAnswerError as error:
+        raise HTTPException(409, str(error)) from error
     except (
         InactiveInterviewSessionError,
         InterviewQuestionOwnershipError,
@@ -196,27 +119,3 @@ def submit_interview_answer(
         ) from error
 
     return InterviewAnswerResponse.model_validate(result)
-
-
-@router.get(
-    "/interview-sessions/{session_id}/answers",
-    response_model=list[InterviewAnswerResponse],
-)
-def list_interview_answers(
-    session_id: int,
-    db: Session = Depends(get_db),
-) -> list[InterviewAnswerResponse]:
-    try:
-        answers = InterviewSessionService(db).list_answers(session_id)
-    except InterviewSessionNotFoundError as error:
-        raise HTTPException(404, str(error)) from error
-    except SQLAlchemyError as error:
-        raise HTTPException(
-            500,
-            "The interview answers could not be retrieved.",
-        ) from error
-
-    return [
-        InterviewAnswerResponse.model_validate(answer)
-        for answer in answers
-    ]

@@ -12,6 +12,7 @@ from app.models.interview_session import (
     InterviewSessionStatus,
 )
 from app.repositories.interview_session_repository import (
+    DuplicateInterviewAnswerError,
     InterviewSessionRepository,
 )
 from app.repositories.job_repository import JobRepository
@@ -191,9 +192,10 @@ class InterviewSessionService:
         answer_data: InterviewAnswerCreate,
     ) -> InterviewAnswer:
         interview_session = self.get_session(session_id)
-        current_status = self._parse_status(interview_session.status)
 
-        if current_status != InterviewSessionStatus.ACTIVE:
+        if self._parse_status(interview_session.status) != (
+            InterviewSessionStatus.ACTIVE
+        ):
             raise InactiveInterviewSessionError(
                 "Answers can only be submitted to an active session."
             )
@@ -215,15 +217,16 @@ class InterviewSessionService:
                 "The question does not belong to the specified session."
             )
 
+        if self.repository.answer_exists_for_question(
+            session_id=session_id,
+            question_id=question.id,
+        ):
+            raise DuplicateInterviewAnswerError(
+                "This interview question already has an answer."
+            )
+
         return self.repository.create_answer(
             session_id=session_id,
             question=question,
             answer=answer_data.answer,
         )
-
-    def list_answers(
-        self,
-        session_id: int,
-    ) -> list[InterviewAnswer]:
-        self.get_session(session_id)
-        return self.repository.list_answers_by_session_id(session_id)
