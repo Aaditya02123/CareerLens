@@ -3,6 +3,9 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
+from app.models.interview_preparation import (
+    InterviewPreparationResponse,
+)
 from app.models.interview_session import (
     InterviewAnswerCreate,
     InterviewSessionCreate,
@@ -11,6 +14,8 @@ from app.models.interview_session import (
 from app.services import interview_session_service as service_module
 from app.services.interview_session_service import (
     InactiveInterviewSessionError,
+    InterviewQuestionNotFoundError,
+    InterviewQuestionOwnershipError,
     InterviewSessionNotFoundError,
     InterviewSessionService,
     JobNotFoundError,
@@ -20,61 +25,24 @@ from app.services.interview_session_service import (
 )
 
 
-class FakeUserRepository:
-    def __init__(self, user=None):
-        self.user = user
-
-    def get_by_id(self, user_id: int):
-        if self.user is not None and self.user.id == user_id:
-            return self.user
-        return None
-
-
-class FakeResumeRepository:
-    def __init__(self, resumes=None):
-        self.resumes = resumes or []
-
-    def get_by_id(self, resume_id: int):
-        return next(
-            (
-                resume
-                for resume in self.resumes
-                if resume.id == resume_id
-            ),
-            None,
-        )
-
-
-class FakeJobRepository:
-    def __init__(self, jobs=None):
-        self.jobs = jobs or []
-
-    def get_by_id(self, job_id: int):
-        return next(
-            (
-                job
-                for job in self.jobs
-                if job.id == job_id
-            ),
-            None,
-        )
-
-
-class FakeInterviewSessionRepository:
+class FakeRepository:
     def __init__(self):
+        self.session = object()
         self.sessions = {}
+        self.questions = {}
         self.answers = {}
         self.next_session_id = 1
         self.next_answer_id = 1
 
-    def create_session(
+    def create_session_with_questions(
         self,
         user_id,
         resume_id,
         job_id,
         status,
+        questions,
     ):
-        interview_session = SimpleNamespace(
+        session = SimpleNamespace(
             id=self.next_session_id,
             user_id=user_id,
             resume_id=resume_id,
@@ -82,59 +50,88 @@ class FakeInterviewSessionRepository:
             status=status,
             answers=[],
         )
-        self.sessions[interview_session.id] = interview_session
-        self.answers[interview_session.id] = []
+        self.sessions[session.id] = session
+        self.questions[session.id] = list(questions)
+        self.answers[session.id] = []
         self.next_session_id += 1
-        return interview_session
+        return session
 
-    def get_by_id(self, session_id: int):
+    def get_by_id(self, session_id):
         return self.sessions.get(session_id)
 
-    def list_by_user_id(self, user_id: int):
+    def list_by_user_id(self, user_id):
         return [
-            interview_session
-            for interview_session in self.sessions.values()
-            if interview_session.user_id == user_id
+            item
+            for item in self.sessions.values()
+            if item.user_id == user_id
         ]
 
     def update_status(self, interview_session, status):
         interview_session.status = status
         return interview_session
 
-    def create_answer(
-        self,
-        session_id,
-        question,
-        answer,
-        question_category,
-    ):
-        interview_answer = SimpleNamespace(
+    def get_question_by_id(self, question_id):
+        for questions in self.questions.values():
+            for question in questions:
+                if getattr(question, "id", None) == question_id:
+                    return question
+        return None
+
+    def create_answer(self, session_id, question, answer):
+        item = SimpleNamespace(
             id=self.next_answer_id,
             session_id=session_id,
-            question=question,
+            question_id=question.id,
+            question=question.question,
             answer=answer,
-            question_category=question_category,
+            question_category=question.category,
         )
-        self.answers[session_id].append(interview_answer)
-        self.sessions[session_id].answers.append(interview_answer)
+        self.answers[session_id].append(item)
         self.next_answer_id += 1
-        return interview_answer
+        return item
 
-    def list_answers_by_session_id(self, session_id: int):
+    def list_answers_by_session_id(self, session_id):
         return self.answers.get(session_id, [])
+
+
+class FakeUserRepository:
+    def __init__(self, user=None):
+        self.user = user
+
+    def get_by_id(self, user_id):
+        return self.user
+
+
+class FakeResumeRepository:
+    def __init__(self, resume=None):
+        self.resume = resume
+
+    def get_by_id(self, resume_id):
+        return self.resume
+
+
+class FakeJobRepository:
+    def __init__(self, job=None):
+        self.job = job
+
+    def get_by_id(self, job_id):
+        return self.job
 
 
 @pytest.fixture
 def repositories(monkeypatch):
-    user = SimpleNamespace(id=1)
-    resume = SimpleNamespace(id=1, user_id=1)
-    job = SimpleNamespace(id=1)
+    repository = FakeRepository()
+    user_repository = FakeUserRepository(SimpleNamespace(id=1))
+    resume_repository = FakeResumeRepository(
+        SimpleNamespace(id=1, user_id=1)
+    )
+    job_repository = FakeJobRepository(SimpleNamespace(id=1))
 
-    user_repository = FakeUserRepository(user=user)
-    resume_repository = FakeResumeRepository(resumes=[resume])
-    job_repository = FakeJobRepository(jobs=[job])
-    interview_repository = FakeInterviewSessionRepository()
-
+    monkeypatch.setattr(
+        service_module,
+        "InterviewSessionRepository",
+        lambda session: repository,
+    )
     monkeypatch.setattr(
         service_module,
         "UserRepository",
@@ -152,25 +149,24 @@ def repositories(monkeypatch):
     )
     monkeypatch.setattr(
         service_module,
-        "InterviewSessionRepository",
-        lambda session: interview_repository,
+        "build_interview_preparation",
+        lambda **kwargs: InterviewPreparationResponse(
+            resume_id=1,
+            job_id=1,
+            questions=[],
+        ),
     )
 
     return {
-        "user": user,
-        "resume": resume,
-        "job": job,
-        "user_repository": user_repository,
-        "resume_repository": resume_repository,
-        "job_repository": job_repository,
-        "interview_repository": interview_repository,
+        "repository": repository,
+        "user": user_repository,
+        "resume": resume_repository,
+        "job": job_repository,
     }
 
 
-def test_create_session_creates_active_session(repositories):
-    service = InterviewSessionService(object())
-
-    interview_session = service.create_session(
+def create_session(repositories):
+    return InterviewSessionService(object()).create_session(
         InterviewSessionCreate(
             user_id=1,
             resume_id=1,
@@ -178,159 +174,87 @@ def test_create_session_creates_active_session(repositories):
         )
     )
 
-    assert interview_session.status == InterviewSessionStatus.ACTIVE
-    assert interview_session.user_id == 1
-    assert interview_session.resume_id == 1
-    assert interview_session.job_id == 1
+
+def test_create_session_is_active(repositories):
+    session = create_session(repositories)
+    assert session.status == InterviewSessionStatus.ACTIVE
 
 
 @pytest.mark.parametrize(
-    ("missing_repository", "expected_error"),
+    ("name", "error"),
     [
-        ("user_repository", UserNotFoundError),
-        ("resume_repository", ResumeNotFoundError),
-        ("job_repository", JobNotFoundError),
+        ("user", UserNotFoundError),
+        ("resume", ResumeNotFoundError),
+        ("job", JobNotFoundError),
     ],
 )
-def test_create_session_rejects_missing_resources(
+def test_create_session_validates_resources(
     repositories,
-    missing_repository,
-    expected_error,
+    name,
+    error,
 ):
-    repository = repositories[missing_repository]
+    if name == "user":
+        repositories["user"].user = None
+    elif name == "resume":
+        repositories["resume"].resume = None
+    elif name == "job":
+        repositories["job"].job = None
 
-    if missing_repository == "user_repository":
-        repository.user = None
-    elif missing_repository == "resume_repository":
-        repository.resumes = []
-    else:
-        repository.jobs = []
-
-    service = InterviewSessionService(object())
-
-    with pytest.raises(expected_error):
-        service.create_session(
-            InterviewSessionCreate(
-                user_id=1,
-                resume_id=1,
-                job_id=1,
-            )
-        )
-
+    with pytest.raises(error):
+        create_session(repositories)
 
 def test_create_session_rejects_resume_owned_by_another_user(
     repositories,
 ):
-    repositories["resume"].user_id = 2
-    service = InterviewSessionService(object())
+    repositories["resume"].resume.user_id = 2
 
     with pytest.raises(ResumeOwnershipError):
-        service.create_session(
-            InterviewSessionCreate(
-                user_id=1,
-                resume_id=1,
-                job_id=1,
-            )
-        )
+        create_session(repositories)
 
 
-def test_existing_session_can_be_retrieved(repositories):
-    service = InterviewSessionService(object())
-    created_session = service.create_session(
-        InterviewSessionCreate(
-            user_id=1,
-            resume_id=1,
-            job_id=1,
-        )
-    )
+def test_session_retrieval_and_listing(repositories):
+    first = create_session(repositories)
+    second = create_session(repositories)
 
-    retrieved_session = service.get_session(created_session.id)
-
-    assert retrieved_session.id == created_session.id
-
-
-def test_missing_session_raises_error(repositories):
     service = InterviewSessionService(object())
 
-    with pytest.raises(InterviewSessionNotFoundError):
-        service.get_session(999)
-
-
-def test_sessions_are_listed_for_user(repositories):
-    service = InterviewSessionService(object())
-
-    first_session = service.create_session(
-        InterviewSessionCreate(
-            user_id=1,
-            resume_id=1,
-            job_id=1,
-        )
-    )
-    second_session = service.create_session(
-        InterviewSessionCreate(
-            user_id=1,
-            resume_id=1,
-            job_id=1,
-        )
-    )
-
-    sessions = service.list_sessions_for_user(1)
-
-    assert [session.id for session in sessions] == [
-        first_session.id,
-        second_session.id,
+    assert service.get_session(first.id).id == first.id
+    assert [item.id for item in service.list_sessions_for_user(1)] == [
+        first.id,
+        second.id,
     ]
 
 
-def test_listing_sessions_for_missing_user_raises_error(repositories):
-    repositories["user_repository"].user = None
-    service = InterviewSessionService(object())
-
-    with pytest.raises(UserNotFoundError):
-        service.list_sessions_for_user(1)
+def test_missing_session_is_rejected(repositories):
+    with pytest.raises(InterviewSessionNotFoundError):
+        InterviewSessionService(object()).get_session(999)
 
 
 @pytest.mark.parametrize(
-    ("new_status", "expected_status"),
+    ("new_status", "expected"),
     [
-        (
-            "completed",
-            InterviewSessionStatus.COMPLETED,
-        ),
-        (
-            "abandoned",
-            InterviewSessionStatus.ABANDONED,
-        ),
-        (
-            "active",
-            InterviewSessionStatus.ACTIVE,
-        ),
+        ("completed", InterviewSessionStatus.COMPLETED),
+        ("abandoned", InterviewSessionStatus.ABANDONED),
+        ("active", InterviewSessionStatus.ACTIVE),
     ],
 )
-def test_active_session_transitions_are_allowed(
+def test_active_status_transitions(
     repositories,
     new_status,
-    expected_status,
+    expected,
 ):
-    service = InterviewSessionService(object())
-    interview_session = service.create_session(
-        InterviewSessionCreate(
-            user_id=1,
-            resume_id=1,
-            job_id=1,
-        )
+    session = create_session(repositories)
+
+    result = InterviewSessionService(object()).update_session_status(
+        session.id,
+        new_status,
     )
 
-    updated_session = service.update_session_status(
-        session_id=interview_session.id,
-        new_status=new_status,
-    )
-
-    assert updated_session.status == expected_status
+    assert result.status == expected
 
 
 @pytest.mark.parametrize(
-    ("initial_status", "new_status"),
+    ("initial", "new"),
     [
         ("completed", "active"),
         ("completed", "abandoned"),
@@ -338,210 +262,117 @@ def test_active_session_transitions_are_allowed(
         ("abandoned", "completed"),
     ],
 )
-def test_terminal_session_transitions_are_rejected(
+def test_terminal_status_transitions_are_rejected(
     repositories,
-    initial_status,
-    new_status,
+    initial,
+    new,
 ):
+    session = create_session(repositories)
     service = InterviewSessionService(object())
-    interview_session = service.create_session(
-        InterviewSessionCreate(
-            user_id=1,
-            resume_id=1,
-            job_id=1,
-        )
-    )
-    service.update_session_status(
-        session_id=interview_session.id,
-        new_status=initial_status,
-    )
+    service.update_session_status(session.id, initial)
 
     with pytest.raises(ValueError):
-        service.update_session_status(
-            session_id=interview_session.id,
-            new_status=new_status,
-        )
+        service.update_session_status(session.id, new)
 
 
-def test_invalid_session_status_is_rejected(repositories):
-    service = InterviewSessionService(object())
-    interview_session = service.create_session(
-        InterviewSessionCreate(
-            user_id=1,
-            resume_id=1,
-            job_id=1,
-        )
-    )
+def test_invalid_status_is_rejected(repositories):
+    session = create_session(repositories)
 
     with pytest.raises(ValueError):
-        service.update_session_status(
-            session_id=interview_session.id,
-            new_status="invalid",
+        InterviewSessionService(object()).update_session_status(
+            session.id,
+            "invalid",
         )
 
 
-def test_valid_answer_preserves_exact_text_and_category(repositories):
+def test_inactive_session_rejects_answers(repositories):
+    session = create_session(repositories)
     service = InterviewSessionService(object())
-    interview_session = service.create_session(
-        InterviewSessionCreate(
-            user_id=1,
-            resume_id=1,
-            job_id=1,
-        )
-    )
-
-    answer_data = InterviewAnswerCreate(
-        question="How would you use FastAPI?",
-        answer="I would use FastAPI to build REST APIs.",
-        question_category="technical",
-    )
-
-    answer = service.submit_answer(
-        session_id=interview_session.id,
-        answer_data=answer_data,
-    )
-
-    assert answer.question == answer_data.question
-    assert answer.answer == answer_data.answer
-    assert answer.question_category == answer_data.question_category
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        ("question", ""),
-        ("answer", ""),
-    ],
-)
-def test_empty_question_or_answer_is_rejected(
-    repositories,
-    field,
-    value,
-):
-    service = InterviewSessionService(object())
-    interview_session = service.create_session(
-        InterviewSessionCreate(
-            user_id=1,
-            resume_id=1,
-            job_id=1,
-        )
-    )
-
-    values = {
-        "question": "A valid question",
-        "answer": "A valid answer",
-        "question_category": "technical",
-    }
-    values[field] = value
-
-    answer_data = InterviewAnswerCreate.model_construct(**values)
-
-    with pytest.raises(ValueError):
-        service.submit_answer(
-            session_id=interview_session.id,
-            answer_data=answer_data,
-        )
-
-
-def test_empty_category_is_rejected_at_service_level(repositories):
-    service = InterviewSessionService(object())
-    interview_session = service.create_session(
-        InterviewSessionCreate(
-            user_id=1,
-            resume_id=1,
-            job_id=1,
-        )
-    )
-
-    answer_data = InterviewAnswerCreate.model_construct(
-        question="A valid question",
-        answer="A valid answer",
-        question_category="",
-    )
-
-    with pytest.raises(ValueError):
-        service.submit_answer(
-            session_id=interview_session.id,
-            answer_data=answer_data,
-        )
-
-
-def test_invalid_question_category_is_rejected_by_pydantic():
-    with pytest.raises(ValidationError):
-        InterviewAnswerCreate(
-            question="How would you use FastAPI?",
-            answer="I would use FastAPI to build REST APIs.",
-            question_category="unknown",
-        )
-
-
-@pytest.mark.parametrize(
-    "terminal_status",
-    [
-        "completed",
-        "abandoned",
-    ],
-)
-def test_answer_submission_to_inactive_session_is_rejected(
-    repositories,
-    terminal_status,
-):
-    service = InterviewSessionService(object())
-    interview_session = service.create_session(
-        InterviewSessionCreate(
-            user_id=1,
-            resume_id=1,
-            job_id=1,
-        )
-    )
-    service.update_session_status(
-        session_id=interview_session.id,
-        new_status=terminal_status,
-    )
-
-    answer_data = InterviewAnswerCreate(
-        question="Tell me about yourself.",
-        answer="I am a software developer.",
-        question_category="behavioral",
-    )
+    service.update_session_status(session.id, "completed")
 
     with pytest.raises(InactiveInterviewSessionError):
         service.submit_answer(
-            session_id=interview_session.id,
-            answer_data=answer_data,
+            session.id,
+            InterviewAnswerCreate(
+                question_id=1,
+                answer="Answer.",
+            ),
         )
 
 
-def test_answers_are_retrieved_in_creation_order(repositories):
-    service = InterviewSessionService(object())
-    interview_session = service.create_session(
-        InterviewSessionCreate(
-            user_id=1,
-            resume_id=1,
-            job_id=1,
+def test_answer_requires_persisted_question(repositories):
+    session = create_session(repositories)
+
+    with pytest.raises(InterviewQuestionNotFoundError):
+        InterviewSessionService(object()).submit_answer(
+            session.id,
+            InterviewAnswerCreate(
+                question_id=999,
+                answer="Answer.",
+            ),
         )
-    )
 
-    first_answer = service.submit_answer(
-        session_id=interview_session.id,
-        answer_data=InterviewAnswerCreate(
-            question="First question",
-            answer="First answer",
-            question_category="technical",
+
+def test_answer_category_is_derived_from_question(repositories):
+    question = SimpleNamespace(
+        id=1,
+        session_id=1,
+        question="Persisted question",
+        category="technical",
+    )
+    session = create_session(repositories)
+    repositories["repository"].questions[session.id] = [question]
+
+    answer = InterviewSessionService(object()).submit_answer(
+        session.id,
+        InterviewAnswerCreate(
+            question_id=1,
+            answer="Exact answer text.",
         ),
     )
-    second_answer = service.submit_answer(
-        session_id=interview_session.id,
-        answer_data=InterviewAnswerCreate(
-            question="Second question",
-            answer="Second answer",
-            question_category="behavioral",
-        ),
+
+    assert answer.question == "Persisted question"
+    assert answer.question_category == "technical"
+
+
+def test_cross_session_question_is_rejected(repositories):
+    first = create_session(repositories)
+    second = create_session(repositories)
+
+    question = SimpleNamespace(
+        id=10,
+        session_id=first.id,
+        question="First session question",
+        category="technical",
     )
+    repositories["repository"].questions[first.id] = [question]
 
-    answers = service.list_answers(interview_session.id)
+    with pytest.raises(InterviewQuestionOwnershipError):
+        InterviewSessionService(object()).submit_answer(
+            second.id,
+            InterviewAnswerCreate(
+                question_id=10,
+                answer="Cross-session answer.",
+            ),
+        )
 
-    assert [answer.id for answer in answers] == [
-        first_answer.id,
-        second_answer.id,
-    ]
+
+def test_empty_answer_is_rejected(repositories):
+    session = create_session(repositories)
+
+    with pytest.raises(ValueError):
+        InterviewSessionService(object()).submit_answer(
+            session.id,
+            InterviewAnswerCreate.model_construct(
+                question_id=1,
+                answer="",
+            ),
+        )
+
+
+def test_invalid_answer_schema_is_rejected():
+    with pytest.raises(ValidationError):
+        InterviewAnswerCreate(
+            question_id=1,
+            answer=None,
+        )

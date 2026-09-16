@@ -1,8 +1,12 @@
 from sqlalchemy.orm import Session
 
+from app.models.interview_preparation import (
+    InterviewQuestion as GeneratedQuestion,
+)
 from app.models.interview_session import (
     InterviewAnswer,
     InterviewAnswerCreate,
+    InterviewQuestionResponse,
     InterviewSession,
     InterviewSessionCreate,
     InterviewSessionStatus,
@@ -13,30 +17,41 @@ from app.repositories.interview_session_repository import (
 from app.repositories.job_repository import JobRepository
 from app.repositories.resume_repository import ResumeRepository
 from app.repositories.user_repository import UserRepository
+from app.services.interview_preparation_service import (
+    build_interview_preparation,
+)
 
 
 class UserNotFoundError(LookupError):
-    """Raised when a referenced user does not exist."""
+    pass
 
 
 class ResumeNotFoundError(LookupError):
-    """Raised when a referenced resume does not exist."""
+    pass
 
 
 class JobNotFoundError(LookupError):
-    """Raised when a referenced job does not exist."""
+    pass
 
 
 class ResumeOwnershipError(ValueError):
-    """Raised when a resume belongs to a different user."""
+    pass
 
 
 class InterviewSessionNotFoundError(LookupError):
-    """Raised when an interview session does not exist."""
+    pass
+
+
+class InterviewQuestionNotFoundError(LookupError):
+    pass
+
+
+class InterviewQuestionOwnershipError(ValueError):
+    pass
 
 
 class InactiveInterviewSessionError(ValueError):
-    """Raised when an inactive session is used for a new answer."""
+    pass
 
 
 ALLOWED_SESSION_TRANSITIONS = {
@@ -55,9 +70,8 @@ ALLOWED_SESSION_TRANSITIONS = {
 
 
 class InterviewSessionService:
-    """Business logic for mock interview sessions."""
-
     def __init__(self, session: Session) -> None:
+        self.session = session
         self.repository = InterviewSessionRepository(session)
         self.user_repository = UserRepository(session)
         self.resume_repository = ResumeRepository(session)
@@ -81,14 +95,12 @@ class InterviewSessionService:
         self,
         session_data: InterviewSessionCreate,
     ) -> InterviewSession:
-        """Create an active interview session after ownership checks."""
         if self.user_repository.get_by_id(session_data.user_id) is None:
             raise UserNotFoundError("The specified user was not found.")
 
         resume = self.resume_repository.get_by_id(
             session_data.resume_id
         )
-
         if resume is None:
             raise ResumeNotFoundError(
                 "The specified resume was not found."
@@ -102,18 +114,21 @@ class InterviewSessionService:
         if self.job_repository.get_by_id(session_data.job_id) is None:
             raise JobNotFoundError("The specified job was not found.")
 
-        return self.repository.create_session(
+        preparation = build_interview_preparation(
+            resume_id=session_data.resume_id,
+            job_id=session_data.job_id,
+            session=self.session,
+        )
+
+        return self.repository.create_session_with_questions(
             user_id=session_data.user_id,
             resume_id=session_data.resume_id,
             job_id=session_data.job_id,
             status=InterviewSessionStatus.ACTIVE,
+            questions=preparation.questions,
         )
 
-    def get_session(
-        self,
-        session_id: int,
-    ) -> InterviewSession:
-        """Return an interview session by ID."""
+    def get_session(self, session_id: int) -> InterviewSession:
         interview_session = self.repository.get_by_id(session_id)
 
         if interview_session is None:
@@ -127,18 +142,29 @@ class InterviewSessionService:
         self,
         user_id: int,
     ) -> list[InterviewSession]:
-        """Return all interview sessions for a user."""
         if self.user_repository.get_by_id(user_id) is None:
             raise UserNotFoundError("The specified user was not found.")
 
         return self.repository.list_by_user_id(user_id)
+
+    def list_questions(
+        self,
+        session_id: int,
+    ) -> list[InterviewQuestionResponse]:
+        self.get_session(session_id)
+
+        return [
+            InterviewQuestionResponse.model_validate(question)
+            for question in self.repository.list_questions_by_session_id(
+                session_id
+            )
+        ]
 
     def update_session_status(
         self,
         session_id: int,
         new_status: str,
     ) -> InterviewSession:
-        """Update a session status when the transition is valid."""
         interview_session = self.get_session(session_id)
         parsed_status = self._parse_status(new_status)
         current_status = self._parse_status(interview_session.status)
@@ -164,7 +190,6 @@ class InterviewSessionService:
         session_id: int,
         answer_data: InterviewAnswerCreate,
     ) -> InterviewAnswer:
-        """Store an answer only for an active interview session."""
         interview_session = self.get_session(session_id)
         current_status = self._parse_status(interview_session.status)
 
@@ -173,28 +198,32 @@ class InterviewSessionService:
                 "Answers can only be submitted to an active session."
             )
 
-        if not answer_data.question.strip():
-            raise ValueError("Question cannot be empty.")
-
         if not answer_data.answer.strip():
             raise ValueError("Answer cannot be empty.")
 
-        if not answer_data.question_category.strip():
-            raise ValueError(
-                "Question category cannot be empty."
+        question = self.repository.get_question_by_id(
+            answer_data.question_id
+        )
+
+        if question is None:
+            raise InterviewQuestionNotFoundError(
+                "The specified interview question was not found."
+            )
+
+        if question.session_id != session_id:
+            raise InterviewQuestionOwnershipError(
+                "The question does not belong to the specified session."
             )
 
         return self.repository.create_answer(
             session_id=session_id,
-            question=answer_data.question,
+            question=question,
             answer=answer_data.answer,
-            question_category=answer_data.question_category,
         )
 
     def list_answers(
         self,
         session_id: int,
     ) -> list[InterviewAnswer]:
-        """Return answers for an existing session."""
         self.get_session(session_id)
         return self.repository.list_answers_by_session_id(session_id)

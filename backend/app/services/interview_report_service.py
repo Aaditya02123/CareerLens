@@ -25,63 +25,37 @@ INTERVIEW_CATEGORIES: tuple[InterviewQuestionCategory, ...] = (
 )
 
 
-def _empty_category_scores() -> dict[
-    InterviewQuestionCategory,
-    InterviewCategoryScore,
-]:
-    """Return all known categories with zero scores."""
-    return {
-        category: InterviewCategoryScore()
-        for category in INTERVIEW_CATEGORIES
-    }
-
-
 def _average(values: Iterable[float]) -> float:
-    """Return an arithmetic mean or zero for an empty collection."""
     values_list = list(values)
-
-    if not values_list:
-        return 0.0
-
-    return sum(values_list) / len(values_list)
+    return sum(values_list) / len(values_list) if values_list else 0.0
 
 
 def _unique_feedback(evaluations, field_name: str) -> list[str]:
-    """Deduplicate feedback case-insensitively while preserving order."""
-    feedback: list[str] = []
+    result: list[str] = []
     seen: set[str] = set()
 
     for evaluation in evaluations:
         for item in getattr(evaluation, field_name):
-            normalized_item = item.casefold()
+            key = item.casefold()
+            if key not in seen:
+                seen.add(key)
+                result.append(item)
 
-            if normalized_item in seen:
-                continue
-
-            seen.add(normalized_item)
-            feedback.append(item)
-
-    return feedback
+    return result
 
 
 def generate_interview_session_report(
     session_id: int,
     session: Session,
 ) -> InterviewSessionReport:
-    """Generate a report from the session's submitted answers.
-
-    The current database model stores submitted answers but does not persist
-    the full preparation question set. Therefore total_questions is based on
-    the number of submitted answers available for this session.
-    """
     repository = InterviewSessionRepository(session)
-    interview_session = repository.get_by_id(session_id)
 
-    if interview_session is None:
+    if repository.get_by_id(session_id) is None:
         raise InterviewSessionNotFoundError(
             "The requested interview session was not found."
         )
 
+    questions = repository.list_questions_by_session_id(session_id)
     answers = repository.list_answers_by_session_id(session_id)
 
     evaluations: list[InterviewEvaluationResponse] = [
@@ -93,10 +67,7 @@ def generate_interview_session_report(
         for answer in answers
     ]
 
-    answered_questions = len(evaluations)
-    category_scores = _empty_category_scores()
-
-    grouped_evaluations: dict[
+    grouped: dict[
         InterviewQuestionCategory,
         list[InterviewEvaluationResponse],
     ] = {
@@ -105,24 +76,24 @@ def generate_interview_session_report(
     }
 
     for answer, evaluation in zip(answers, evaluations):
-        category = answer.question_category
+        if answer.question_category in grouped:
+            grouped[answer.question_category].append(evaluation)
 
-        if category in grouped_evaluations:
-            grouped_evaluations[category].append(evaluation)
-
-    for category, category_evaluations in grouped_evaluations.items():
-        category_scores[category] = InterviewCategoryScore(
+    category_scores = {
+        category: InterviewCategoryScore(
             average_overall_score=_average(
                 evaluation.overall_score
-                for evaluation in category_evaluations
+                for evaluation in grouped[category]
             ),
-            answer_count=len(category_evaluations),
+            answer_count=len(grouped[category]),
         )
+        for category in INTERVIEW_CATEGORIES
+    }
 
     return InterviewSessionReport(
         session_id=session_id,
-        total_questions=answered_questions,
-        answered_questions=answered_questions,
+        total_questions=len(questions),
+        answered_questions=len(answers),
         average_relevance_score=_average(
             evaluation.relevance_score
             for evaluation in evaluations
@@ -140,12 +111,6 @@ def generate_interview_session_report(
             for evaluation in evaluations
         ),
         category_scores=category_scores,
-        strengths=_unique_feedback(
-            evaluations,
-            "strengths",
-        ),
-        improvements=_unique_feedback(
-            evaluations,
-            "improvements",
-        ),
+        strengths=_unique_feedback(evaluations, "strengths"),
+        improvements=_unique_feedback(evaluations, "improvements"),
     )

@@ -11,9 +11,10 @@ from app.services.interview_evaluation_service import (
 
 
 class FakeInterviewSessionRepository:
-    def __init__(self, interview_session=None, answers=None):
+    def __init__(self, interview_session=None, answers=None, questions=None):
         self.interview_session = interview_session
         self.answers = answers or []
+        self.questions = questions or []
 
     def get_by_id(self, session_id: int):
         if (
@@ -30,6 +31,12 @@ class FakeInterviewSessionRepository:
             for answer in self.answers
             if answer.session_id == session_id
         ]
+    def list_questions_by_session_id(self, session_id : int):
+        return[
+            question
+            for question in self.questions
+            if question.session_id == session_id
+        ]
 
 
 def make_answer(
@@ -43,7 +50,21 @@ def make_answer(
         answer=f"Answer {answer_id}",
         question_category=category,
     )
-
+def make_question(
+    question_id: int,
+    question_order: int,
+    category: str,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=question_id,
+        session_id=1,
+        question=f"Question {question_id}",
+        question_category=category,
+        difficulty="medium",
+        priority="medium",
+        reason="Test question.",
+        question_order=question_order,
+    )
 
 def make_evaluation(
     answer_id: int,
@@ -76,6 +97,10 @@ def report_context(monkeypatch):
     repository = FakeInterviewSessionRepository(
         interview_session=interview_session,
         answers=answers,
+        questions=[
+            make_question(101,1,"technical"),
+            make_question(102,2,"behavioral"),
+        ],
     )
 
     monkeypatch.setattr(
@@ -172,7 +197,7 @@ def test_one_answer_is_evaluated_and_aggregated(
     assert len(calls) == 1
     assert calls[0]["session_id"] == 1
     assert calls[0]["answer_id"] == 101
-    assert result.total_questions == 1
+    assert result.total_questions == 2
     assert result.answered_questions == 1
     assert result.average_relevance_score == 80.0
     assert result.average_completeness_score == 60.0
