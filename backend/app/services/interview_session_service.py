@@ -1,8 +1,5 @@
 from sqlalchemy.orm import Session
 
-from app.models.interview_preparation import (
-    InterviewQuestion as GeneratedQuestion,
-)
 from app.models.interview_session import (
     InterviewAnswer,
     InterviewAnswerCreate,
@@ -154,11 +151,22 @@ class InterviewSessionService:
     ) -> list[InterviewQuestionResponse]:
         self.get_session(session_id)
 
-        return [
-            InterviewQuestionResponse.model_validate(question)
-            for question in self.repository.list_questions_by_session_id(
+        questions = self.repository.list_questions_by_session_id(
+            session_id
+        )
+        answered_question_ids = (
+            self.repository.list_answered_question_ids_by_session_id(
                 session_id
             )
+        )
+
+        return [
+            InterviewQuestionResponse.model_validate(question).model_copy(
+                update={
+                    "answered": question.id in answered_question_ids
+                }
+            )
+            for question in questions
         ]
 
     def update_session_status(

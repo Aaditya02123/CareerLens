@@ -200,6 +200,7 @@ class InterviewQuestionResponse(BaseModel):
     reason: str
     question_order: int
     created_at: datetime
+    answered: bool = False
 
 
 class InterviewAnswerResponse(BaseModel):

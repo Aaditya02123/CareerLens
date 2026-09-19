@@ -157,6 +157,15 @@ class InterviewSessionRepository:
         )
         return list(self.session.scalars(statement).all())
 
+    def list_answered_question_ids_by_session_id(
+        self,
+        session_id: int,
+    ) -> set[int]:
+        statement = select(InterviewAnswer.question_id).where(
+            InterviewAnswer.session_id == session_id
+        )
+        return set(self.session.scalars(statement).all())
+
     def create_answer(
         self,
         session_id: int,

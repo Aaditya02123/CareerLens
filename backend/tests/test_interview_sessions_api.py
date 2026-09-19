@@ -8,17 +8,50 @@ from fastapi.testclient import TestClient
 from app.api import interview_sessions as api_module
 from app.core.database import get_db
 from app.main import app
+from app.models.interview_session import InterviewQuestionResponse
 from app.services.interview_session_service import (
     DuplicateInterviewAnswerError,
     InactiveInterviewSessionError,
     InterviewQuestionNotFoundError,
     InterviewQuestionOwnershipError,
+    InterviewSessionNotFoundError,
 )
 
 
 class FakeService:
     def __init__(self, session):
         pass
+
+    def list_questions(self, session_id):
+        if session_id == 999:
+            raise InterviewSessionNotFoundError("Session not found.")
+
+        return [
+            InterviewQuestionResponse(
+                id=2,
+                session_id=session_id,
+                question="Second persisted question",
+                question_category="behavioral",
+                difficulty="easy",
+                priority="low",
+                reason="Behavioral competency.",
+                question_order=2,
+                created_at=datetime.now(timezone.utc),
+                answered=False,
+            ),
+            InterviewQuestionResponse(
+                id=1,
+                session_id=session_id,
+                question="First persisted question",
+                question_category="technical",
+                difficulty="medium",
+                priority="high",
+                reason="Required skill.",
+                question_order=1,
+                created_at=datetime.now(timezone.utc),
+                answered=True,
+            ),
+        ]
 
     def submit_answer(self, session_id, answer_data):
         if answer_data.question_id == 999:
@@ -65,6 +98,32 @@ def client(monkeypatch) -> Generator[TestClient, None, None]:
     app.dependency_overrides.clear()
 
 
+def test_list_questions_returns_answered_flags(client):
+    response = client.get("/interview-sessions/1/questions")
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body[0]["answered"] is False
+    assert body[1]["answered"] is True
+
+
+def test_list_questions_preserves_service_response_order(client):
+    response = client.get("/interview-sessions/1/questions")
+
+    assert response.status_code == 200
+    assert [item["question_order"] for item in response.json()] == [
+        2,
+        1,
+    ]
+
+
+def test_list_questions_missing_session_returns_404(client):
+    response = client.get("/interview-sessions/999/questions")
+
+    assert response.status_code == 404
+
+
 def test_first_answer_returns_201(client):
     response = client.post(
         "/interview-sessions/1/answers",
@@ -75,6 +134,23 @@ def test_first_answer_returns_201(client):
     )
 
     assert response.status_code == 201
+
+
+def test_answer_response_contains_persisted_question_details(client):
+    response = client.post(
+        "/interview-sessions/1/answers",
+        json={
+            "question_id": 100,
+            "answer": "First answer.",
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+
+    assert body["question_id"] == 100
+    assert body["question"] == "Persisted question"
+    assert body["question_category"] == "technical"
 
 
 def test_duplicate_answer_returns_409(client):

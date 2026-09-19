@@ -1,5 +1,5 @@
-from types import SimpleNamespace
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -81,6 +81,12 @@ class FakeRepository:
             self.questions.get(session_id, []),
             key=lambda item: item.question_order,
         )
+
+    def list_answered_question_ids_by_session_id(self, session_id):
+        return {
+            answer.question_id
+            for answer in self.answers.get(session_id, [])
+        }
 
     def create_answer(self, session_id, question, answer):
         item = SimpleNamespace(
@@ -206,6 +212,67 @@ def test_list_questions_preserves_question_order(repositories):
 
     assert [item.question_order for item in result] == [1, 2]
     assert [item.question for item in result] == ["First", "Second"]
+
+
+def test_list_questions_marks_unanswered_questions_false(
+    repositories,
+):
+    session = create_session(repositories)
+
+    result = InterviewSessionService(object()).list_questions(
+        session.id
+    )
+
+    assert [item.answered for item in result] == [False, False]
+
+
+def test_list_questions_marks_one_answered_question_true(
+    repositories,
+):
+    session = create_session(repositories)
+    first_question = repositories.questions[session.id][0]
+
+    InterviewSessionService(object()).submit_answer(
+        session.id,
+        InterviewAnswerCreate(
+            question_id=first_question.id,
+            answer="Answer for the first question.",
+        ),
+    )
+
+    result = InterviewSessionService(object()).list_questions(
+        session.id
+    )
+
+    assert [item.answered for item in result] == [True, False]
+
+
+def test_list_questions_marks_multiple_answered_questions_true(
+    repositories,
+):
+    session = create_session(repositories)
+    first_question = repositories.questions[session.id][0]
+    second_question = repositories.questions[session.id][1]
+
+    service = InterviewSessionService(object())
+    service.submit_answer(
+        session.id,
+        InterviewAnswerCreate(
+            question_id=first_question.id,
+            answer="Answer for the first question.",
+        ),
+    )
+    service.submit_answer(
+        session.id,
+        InterviewAnswerCreate(
+            question_id=second_question.id,
+            answer="Answer for the second question.",
+        ),
+    )
+
+    result = service.list_questions(session.id)
+
+    assert [item.answered for item in result] == [True, True]
 
 
 def test_missing_session_rejected_when_listing_questions(
