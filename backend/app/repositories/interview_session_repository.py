@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -156,6 +156,24 @@ class InterviewSessionRepository:
             )
         )
         return list(self.session.scalars(statement).all())
+
+    def count_questions_by_session_id(
+        self,
+        session_id: int,
+    ) -> int:
+        statement = select(func.count()).select_from(
+            InterviewQuestion
+        ).where(InterviewQuestion.session_id == session_id)
+        return self.session.scalar(statement) or 0
+
+    def count_answers_by_session_id(
+        self,
+        session_id: int,
+    ) -> int:
+        statement = select(func.count()).select_from(
+            InterviewAnswer
+        ).where(InterviewAnswer.session_id == session_id)
+        return self.session.scalar(statement) or 0
 
     def list_answered_question_ids_by_session_id(
         self,
