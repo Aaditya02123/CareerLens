@@ -56,6 +56,10 @@ class InactiveInterviewSessionError(ValueError):
     pass
 
 
+class InvalidInterviewSessionStatusTransitionError(ValueError):
+    pass
+
+
 ALLOWED_SESSION_TRANSITIONS = {
     InterviewSessionStatus.ACTIVE: {
         InterviewSessionStatus.ACTIVE,
@@ -92,6 +96,16 @@ class InterviewSessionService:
             raise ValueError(
                 "Invalid interview session status."
             ) from error
+
+    @staticmethod
+    def _build_transition_error_message(
+        current_status: InterviewSessionStatus,
+        requested_status: InterviewSessionStatus,
+    ) -> str:
+        return (
+            f"Interview session is already {current_status.value} "
+            f"and cannot transition to {requested_status.value}."
+        )
 
     def create_session(
         self,
@@ -195,22 +209,24 @@ class InterviewSessionService:
     def update_session_status(
         self,
         session_id: int,
-        new_status: str,
+        new_status: str | InterviewSessionStatus,
     ) -> InterviewSession:
         interview_session = self.get_session(session_id)
         parsed_status = self._parse_status(new_status)
         current_status = self._parse_status(interview_session.status)
 
+        if parsed_status == current_status:
+            return interview_session
+
         if parsed_status not in ALLOWED_SESSION_TRANSITIONS[
             current_status
         ]:
-            raise ValueError(
-                f"Cannot change interview session status from "
-                f"{current_status.value} to {parsed_status.value}."
+            raise InvalidInterviewSessionStatusTransitionError(
+                self._build_transition_error_message(
+                    current_status=current_status,
+                    requested_status=parsed_status,
+                )
             )
-
-        if parsed_status == current_status:
-            return interview_session
 
         return self.repository.update_status(
             interview_session=interview_session,

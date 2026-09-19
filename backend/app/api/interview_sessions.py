@@ -22,6 +22,7 @@ from app.services.interview_session_service import (
     InterviewQuestionOwnershipError,
     InterviewSessionNotFoundError,
     InterviewSessionService,
+    InvalidInterviewSessionStatusTransitionError,
     JobNotFoundError,
     NoUnansweredInterviewQuestionError,
     ResumeNotFoundError,
@@ -108,6 +109,33 @@ def get_next_interview_question(
             500,
             "The next interview question could not be retrieved.",
         ) from error
+
+
+@router.patch(
+    "/interview-sessions/{session_id}/status",
+    response_model=InterviewSessionResponse,
+)
+def update_interview_session_status(
+    session_id: int,
+    status_update: InterviewSessionStatusUpdate,
+    db: Session = Depends(get_db),
+) -> InterviewSessionResponse:
+    try:
+        result = InterviewSessionService(db).update_session_status(
+            session_id=session_id,
+            new_status=status_update.status,
+        )
+    except InterviewSessionNotFoundError as error:
+        raise HTTPException(404, str(error)) from error
+    except ValueError as error:
+        raise HTTPException(400, str(error)) from error
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            500,
+            "The interview session status could not be updated.",
+        ) from error
+
+    return InterviewSessionResponse.model_validate(result)
 
 
 @router.post(

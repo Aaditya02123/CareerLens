@@ -18,6 +18,7 @@ from app.services.interview_session_service import (
     InterviewQuestionOwnershipError,
     InterviewSessionNotFoundError,
     InterviewSessionService,
+    InvalidInterviewSessionStatusTransitionError,
     JobNotFoundError,
     ResumeNotFoundError,
     ResumeOwnershipError,
@@ -213,6 +214,7 @@ def test_create_session_validates_resources(
     with pytest.raises(error):
         create_session(repositories)
 
+
 def test_create_session_rejects_resume_owned_by_another_user(
     repositories,
 ):
@@ -264,24 +266,48 @@ def test_active_status_transitions(
 
 
 @pytest.mark.parametrize(
-    ("initial", "new"),
+    ("initial", "new", "message"),
     [
-        ("completed", "active"),
-        ("completed", "abandoned"),
-        ("abandoned", "active"),
-        ("abandoned", "completed"),
+        (
+            "completed",
+            "active",
+            "Interview session is already completed and cannot "
+            "transition to active.",
+        ),
+        (
+            "completed",
+            "abandoned",
+            "Interview session is already completed and cannot "
+            "transition to abandoned.",
+        ),
+        (
+            "abandoned",
+            "active",
+            "Interview session is already abandoned and cannot "
+            "transition to active.",
+        ),
+        (
+            "abandoned",
+            "completed",
+            "Interview session is already abandoned and cannot "
+            "transition to completed.",
+        ),
     ],
 )
 def test_terminal_status_transitions_are_rejected(
     repositories,
     initial,
     new,
+    message,
 ):
     session = create_session(repositories)
     service = InterviewSessionService(object())
     service.update_session_status(session.id, initial)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        InvalidInterviewSessionStatusTransitionError,
+        match=message,
+    ):
         service.update_session_status(session.id, new)
 
 
