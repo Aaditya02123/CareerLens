@@ -33,6 +33,7 @@ class FakeRepository:
         self.questions = {}
         self.answers = {}
         self.next_session_id = 1
+        self.next_question_id = 1
         self.next_answer_id = 1
 
     def create_session_with_questions(
@@ -52,7 +53,19 @@ class FakeRepository:
             answers=[],
         )
         self.sessions[session.id] = session
-        self.questions[session.id] = list(questions)
+        self.questions[session.id] = []
+
+        for generated in questions:
+            question = SimpleNamespace(
+                id=self.next_question_id,
+                session_id=session.id,
+                question=generated.question,
+                category=generated.category,
+                question_category=generated.category,
+            )
+            self.questions[session.id].append(question)
+            self.next_question_id += 1
+
         self.answers[session.id] = []
         self.next_session_id += 1
         return session
@@ -100,6 +113,12 @@ class FakeRepository:
             answer.question_id == question_id
             for answer in self.answers.get(session_id, [])
         )
+
+    def count_questions_by_session_id(self, session_id):
+        return len(self.questions.get(session_id, []))
+
+    def count_answers_by_session_id(self, session_id):
+        return len(self.answers.get(session_id, []))
 
     def list_answers_by_session_id(self, session_id):
         return self.answers.get(session_id, [])
@@ -186,6 +205,29 @@ def create_session(repositories):
     )
 
 
+def add_questions(repository, session_id, count):
+    for index in range(count):
+        repository.questions[session_id].append(
+            SimpleNamespace(
+                id=repository.next_question_id,
+                session_id=session_id,
+                question=f"Question {index + 1}",
+                category="technical",
+                question_category="technical",
+            )
+        )
+        repository.next_question_id += 1
+
+
+def answer_questions(repository, session_id, count):
+    for question in repository.questions[session_id][:count]:
+        repository.create_answer(
+            session_id=session_id,
+            question=question,
+            answer=f"Answer for question {question.id}",
+        )
+
+
 def test_create_session_is_active(repositories):
     session = create_session(repositories)
     assert session.status == InterviewSessionStatus.ACTIVE
@@ -240,6 +282,106 @@ def test_session_retrieval_and_listing(repositories):
 def test_missing_session_is_rejected(repositories):
     with pytest.raises(InterviewSessionNotFoundError):
         InterviewSessionService(object()).get_session(999)
+
+
+def test_progress_for_unanswered_session(repositories):
+    session = create_session(repositories)
+    add_questions(repositories["repository"], session.id, 10)
+
+    result = InterviewSessionService(object()).get_session_progress(
+        session.id
+    )
+
+    assert result.session_id == session.id
+    assert result.status == InterviewSessionStatus.ACTIVE
+    assert result.total_questions == 10
+    assert result.answered_questions == 0
+    assert result.remaining_questions == 10
+    assert result.progress_percentage == pytest.approx(0.0)
+
+
+def test_progress_for_partially_answered_session(repositories):
+    session = create_session(repositories)
+    add_questions(repositories["repository"], session.id, 10)
+    answer_questions(repositories["repository"], session.id, 6)
+
+    result = InterviewSessionService(object()).get_session_progress(
+        session.id
+    )
+
+    assert result.total_questions == 10
+    assert result.answered_questions == 6
+    assert result.remaining_questions == 4
+    assert result.progress_percentage == pytest.approx(60.0)
+
+
+def test_progress_for_fully_answered_session(repositories):
+    session = create_session(repositories)
+    add_questions(repositories["repository"], session.id, 10)
+    answer_questions(repositories["repository"], session.id, 10)
+
+    result = InterviewSessionService(object()).get_session_progress(
+        session.id
+    )
+
+    assert result.total_questions == 10
+    assert result.answered_questions == 10
+    assert result.remaining_questions == 0
+    assert result.progress_percentage == pytest.approx(100.0)
+
+
+def test_progress_for_zero_question_session(repositories):
+    session = create_session(repositories)
+
+    result = InterviewSessionService(object()).get_session_progress(
+        session.id
+    )
+
+    assert result.total_questions == 0
+    assert result.answered_questions == 0
+    assert result.remaining_questions == 0
+    assert result.progress_percentage == pytest.approx(0.0)
+
+
+def test_progress_ignores_answers_from_other_sessions(repositories):
+    first = create_session(repositories)
+    second = create_session(repositories)
+    add_questions(repositories["repository"], first.id, 10)
+    add_questions(repositories["repository"], second.id, 10)
+    answer_questions(repositories["repository"], second.id, 6)
+
+    result = InterviewSessionService(object()).get_session_progress(
+        first.id
+    )
+
+    assert result.total_questions == 10
+    assert result.answered_questions == 0
+    assert result.remaining_questions == 10
+    assert result.progress_percentage == pytest.approx(0.0)
+
+
+def test_progress_missing_session_is_rejected(repositories):
+    with pytest.raises(InterviewSessionNotFoundError):
+        InterviewSessionService(object()).get_session_progress(999)
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        InterviewSessionStatus.ACTIVE,
+        InterviewSessionStatus.COMPLETED,
+        InterviewSessionStatus.ABANDONED,
+    ],
+)
+def test_progress_returns_session_status(repositories, status):
+    session = create_session(repositories)
+    session.status = status
+
+    result = InterviewSessionService(object()).get_session_progress(
+        session.id
+    )
+
+    assert result.status == status
 
 
 @pytest.mark.parametrize(

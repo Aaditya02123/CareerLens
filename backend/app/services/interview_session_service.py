@@ -6,6 +6,7 @@ from app.models.interview_session import (
     InterviewQuestionResponse,
     InterviewSession,
     InterviewSessionCreate,
+    InterviewSessionProgressResponse,
     InterviewSessionStatus,
 )
 from app.repositories.interview_session_repository import (
@@ -205,6 +206,40 @@ class InterviewSessionService:
         return InterviewQuestionResponse.model_validate(
             question
         ).model_copy(update={"answered": False})
+
+    def get_session_progress(
+        self,
+        session_id: int,
+    ) -> InterviewSessionProgressResponse:
+        interview_session = self.get_session(session_id)
+        total_questions = self.repository.count_questions_by_session_id(
+            session_id
+        )
+        answered_questions = self.repository.count_answers_by_session_id(
+            session_id
+        )
+
+        remaining_questions = max(
+            total_questions - answered_questions,
+            0,
+        )
+
+        if total_questions == 0:
+            progress_percentage = 0.0
+        else:
+            progress_percentage = min(
+                (answered_questions / total_questions) * 100,
+                100.0,
+            )
+
+        return InterviewSessionProgressResponse(
+            session_id=session_id,
+            status=self._parse_status(interview_session.status),
+            total_questions=total_questions,
+            answered_questions=answered_questions,
+            remaining_questions=remaining_questions,
+            progress_percentage=progress_percentage,
+        )
 
     def update_session_status(
         self,

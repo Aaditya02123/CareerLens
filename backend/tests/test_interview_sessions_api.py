@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.main import app
 from app.models.interview_session import (
     InterviewQuestionResponse,
+    InterviewSessionProgressResponse,
     InterviewSessionStatus,
 )
 from app.services.interview_session_service import (
@@ -91,6 +92,39 @@ class FakeService:
             question_order=3,
             created_at=datetime.now(timezone.utc),
             answered=False,
+        )
+
+    def get_session_progress(self, session_id):
+        if session_id == 999:
+            raise InterviewSessionNotFoundError("Session not found.")
+
+        if session_id == 1:
+            return InterviewSessionProgressResponse(
+                session_id=1,
+                status=InterviewSessionStatus.ACTIVE,
+                total_questions=10,
+                answered_questions=6,
+                remaining_questions=4,
+                progress_percentage=60.0,
+            )
+
+        if session_id == 2:
+            return InterviewSessionProgressResponse(
+                session_id=2,
+                status=InterviewSessionStatus.COMPLETED,
+                total_questions=10,
+                answered_questions=10,
+                remaining_questions=0,
+                progress_percentage=100.0,
+            )
+
+        return InterviewSessionProgressResponse(
+            session_id=session_id,
+            status=InterviewSessionStatus.ACTIVE,
+            total_questions=0,
+            answered_questions=0,
+            remaining_questions=0,
+            progress_percentage=0.0,
         )
 
     def update_session_status(self, session_id, new_status):
@@ -227,6 +261,48 @@ def test_next_question_all_answered_returns_404(client):
 
 def test_next_question_missing_session_returns_404(client):
     response = client.get("/interview-sessions/999/next-question")
+
+    assert response.status_code == 404
+
+
+def test_progress_returns_200_with_expected_fields(client):
+    response = client.get("/interview-sessions/1/progress")
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body == {
+        "session_id": 1,
+        "status": "active",
+        "total_questions": 10,
+        "answered_questions": 6,
+        "remaining_questions": 4,
+        "progress_percentage": 60.0,
+    }
+
+
+def test_progress_for_fully_answered_session_returns_100(client):
+    response = client.get("/interview-sessions/2/progress")
+
+    assert response.status_code == 200
+    assert response.json()["progress_percentage"] == 100.0
+    assert response.json()["remaining_questions"] == 0
+
+
+def test_progress_for_empty_session_returns_zero(client):
+    response = client.get("/interview-sessions/3/progress")
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["total_questions"] == 0
+    assert body["answered_questions"] == 0
+    assert body["remaining_questions"] == 0
+    assert body["progress_percentage"] == 0.0
+
+
+def test_progress_missing_session_returns_404(client):
+    response = client.get("/interview-sessions/999/progress")
 
     assert response.status_code == 404
 

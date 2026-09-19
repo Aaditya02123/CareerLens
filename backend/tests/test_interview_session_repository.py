@@ -140,3 +140,58 @@ def test_get_next_unanswered_question_uses_not_exists_query():
     assert "NOT" in compiled_statement
     assert "EXISTS" in compiled_statement
     assert "ORDER BY" in compiled_statement
+
+
+@pytest.mark.parametrize(
+    ("method_name", "expected_count"),
+    [
+        ("count_questions_by_session_id", 10),
+        ("count_answers_by_session_id", 6),
+    ],
+)
+def test_count_methods_return_scalar_count(
+    method_name,
+    expected_count,
+):
+    session = FakeSession(scalar_result=expected_count)
+    repository = InterviewSessionRepository(session)
+
+    result = getattr(repository, method_name)(session_id=1)
+
+    assert result == expected_count
+    assert session.scalar_statements
+
+
+@pytest.mark.parametrize(
+    "method_name",
+    [
+        "count_questions_by_session_id",
+        "count_answers_by_session_id",
+    ],
+)
+def test_count_methods_return_zero_when_scalar_is_none(method_name):
+    session = FakeSession(scalar_result=None)
+    repository = InterviewSessionRepository(session)
+
+    result = getattr(repository, method_name)(session_id=1)
+
+    assert result == 0
+
+
+@pytest.mark.parametrize(
+    "method_name",
+    [
+        "count_questions_by_session_id",
+        "count_answers_by_session_id",
+    ],
+)
+def test_count_methods_use_count_and_session_filter(method_name):
+    session = FakeSession(scalar_result=0)
+    repository = InterviewSessionRepository(session)
+
+    getattr(repository, method_name)(session_id=1)
+
+    compiled_statement = str(session.scalar_statements[0]).upper()
+
+    assert "COUNT" in compiled_statement
+    assert "WHERE" in compiled_statement

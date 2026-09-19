@@ -228,3 +228,12 @@ class InterviewSessionResponse(BaseModel):
     answers: list[InterviewAnswerResponse] = Field(
         default_factory=list
     )
+
+
+class InterviewSessionProgressResponse(BaseModel):
+    session_id: int
+    status: InterviewSessionStatus
+    total_questions: int = Field(ge=0)
+    answered_questions: int = Field(ge=0)
+    remaining_questions: int = Field(ge=0)
+    progress_percentage: float = Field(ge=0.0, le=100.0)

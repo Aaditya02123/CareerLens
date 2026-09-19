@@ -9,6 +9,7 @@ from app.models.interview_session import (
     InterviewAnswerResponse,
     InterviewQuestionResponse,
     InterviewSessionCreate,
+    InterviewSessionProgressResponse,
     InterviewSessionResponse,
     InterviewSessionStatus,
 )
@@ -111,6 +112,27 @@ def get_next_interview_question(
         ) from error
 
 
+@router.get(
+    "/interview-sessions/{session_id}/progress",
+    response_model=InterviewSessionProgressResponse,
+)
+def get_interview_session_progress(
+    session_id: int,
+    db: Session = Depends(get_db),
+) -> InterviewSessionProgressResponse:
+    try:
+        return InterviewSessionService(db).get_session_progress(
+            session_id
+        )
+    except InterviewSessionNotFoundError as error:
+        raise HTTPException(404, str(error)) from error
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            500,
+            "The interview session progress could not be retrieved.",
+        ) from error
+
+
 @router.patch(
     "/interview-sessions/{session_id}/status",
     response_model=InterviewSessionResponse,
@@ -127,7 +149,10 @@ def update_interview_session_status(
         )
     except InterviewSessionNotFoundError as error:
         raise HTTPException(404, str(error)) from error
-    except ValueError as error:
+    except (
+        InvalidInterviewSessionStatusTransitionError,
+        ValueError,
+    ) as error:
         raise HTTPException(400, str(error)) from error
     except SQLAlchemyError as error:
         raise HTTPException(
