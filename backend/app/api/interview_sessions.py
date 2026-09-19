@@ -23,6 +23,7 @@ from app.services.interview_session_service import (
     InterviewSessionNotFoundError,
     InterviewSessionService,
     JobNotFoundError,
+    NoUnansweredInterviewQuestionError,
     ResumeNotFoundError,
     ResumeOwnershipError,
     UserNotFoundError,
@@ -82,6 +83,30 @@ def list_interview_questions(
         raise HTTPException(
             500,
             "The interview questions could not be retrieved.",
+        ) from error
+
+
+@router.get(
+    "/interview-sessions/{session_id}/next-question",
+    response_model=InterviewQuestionResponse,
+)
+def get_next_interview_question(
+    session_id: int,
+    db: Session = Depends(get_db),
+) -> InterviewQuestionResponse:
+    try:
+        return InterviewSessionService(db).get_next_question(
+            session_id
+        )
+    except (
+        InterviewSessionNotFoundError,
+        NoUnansweredInterviewQuestionError,
+    ) as error:
+        raise HTTPException(404, str(error)) from error
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            500,
+            "The next interview question could not be retrieved.",
         ) from error
 
 

@@ -166,6 +166,34 @@ class InterviewSessionRepository:
         )
         return set(self.session.scalars(statement).all())
 
+    def get_next_unanswered_question(
+        self,
+        session_id: int,
+    ) -> InterviewQuestion | None:
+        answered_question_exists = (
+            select(InterviewAnswer.id)
+            .where(
+                InterviewAnswer.session_id == session_id,
+                InterviewAnswer.question_id == InterviewQuestion.id,
+            )
+            .exists()
+        )
+
+        statement = (
+            select(InterviewQuestion)
+            .where(
+                InterviewQuestion.session_id == session_id,
+                ~answered_question_exists,
+            )
+            .order_by(
+                InterviewQuestion.question_order.asc(),
+                InterviewQuestion.id.asc(),
+            )
+            .limit(1)
+        )
+
+        return self.session.scalar(statement)
+
     def create_answer(
         self,
         session_id: int,

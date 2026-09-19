@@ -15,6 +15,7 @@ from app.services.interview_session_service import (
     InterviewQuestionNotFoundError,
     InterviewQuestionOwnershipError,
     InterviewSessionNotFoundError,
+    NoUnansweredInterviewQuestionError,
 )
 
 
@@ -52,6 +53,28 @@ class FakeService:
                 answered=True,
             ),
         ]
+
+    def get_next_question(self, session_id):
+        if session_id == 999:
+            raise InterviewSessionNotFoundError("Session not found.")
+
+        if session_id == 888:
+            raise NoUnansweredInterviewQuestionError(
+                "No unanswered interview questions remain."
+            )
+
+        return InterviewQuestionResponse(
+            id=3,
+            session_id=session_id,
+            question="Next unanswered question",
+            question_category="technical",
+            difficulty="medium",
+            priority="high",
+            reason="Required skill.",
+            question_order=3,
+            created_at=datetime.now(timezone.utc),
+            answered=False,
+        )
 
     def submit_answer(self, session_id, answer_data):
         if answer_data.question_id == 999:
@@ -120,6 +143,32 @@ def test_list_questions_preserves_service_response_order(client):
 
 def test_list_questions_missing_session_returns_404(client):
     response = client.get("/interview-sessions/999/questions")
+
+    assert response.status_code == 404
+
+
+def test_next_question_returns_200_with_unanswered_question(client):
+    response = client.get("/interview-sessions/1/next-question")
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["question"] == "Next unanswered question"
+    assert body["question_order"] == 3
+    assert body["answered"] is False
+
+
+def test_next_question_all_answered_returns_404(client):
+    response = client.get("/interview-sessions/888/next-question")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == (
+        "No unanswered interview questions remain."
+    )
+
+
+def test_next_question_missing_session_returns_404(client):
+    response = client.get("/interview-sessions/999/next-question")
 
     assert response.status_code == 404
 

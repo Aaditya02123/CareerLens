@@ -44,6 +44,10 @@ class InterviewQuestionNotFoundError(LookupError):
     pass
 
 
+class NoUnansweredInterviewQuestionError(LookupError):
+    pass
+
+
 class InterviewQuestionOwnershipError(ValueError):
     pass
 
@@ -168,6 +172,25 @@ class InterviewSessionService:
             )
             for question in questions
         ]
+
+    def get_next_question(
+        self,
+        session_id: int,
+    ) -> InterviewQuestionResponse:
+        self.get_session(session_id)
+
+        question = self.repository.get_next_unanswered_question(
+            session_id
+        )
+
+        if question is None:
+            raise NoUnansweredInterviewQuestionError(
+                "No unanswered interview questions remain."
+            )
+
+        return InterviewQuestionResponse.model_validate(
+            question
+        ).model_copy(update={"answered": False})
 
     def update_session_status(
         self,

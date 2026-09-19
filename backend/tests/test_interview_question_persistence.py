@@ -20,6 +20,7 @@ from app.services.interview_session_service import (
     InterviewQuestionOwnershipError,
     InterviewSessionNotFoundError,
     InterviewSessionService,
+    NoUnansweredInterviewQuestionError,
 )
 
 
@@ -30,6 +31,7 @@ class FakeRepository:
         self.questions = {}
         self.answers = {}
         self.next_session_id = 1
+        self.next_question_id = 1
         self.next_answer_id = 1
 
     def create_session_with_questions(
@@ -47,23 +49,33 @@ class FakeRepository:
             job_id=job_id,
             status=status,
         )
+
         self.sessions[session.id] = session
-        self.questions[session.id] = [
-            SimpleNamespace(
-                id=index,
-                session_id=session.id,
-                question=item.question,
-                question_category=item.category,
-                difficulty=item.difficulty,
-                priority=item.priority,
-                reason=item.reason,
-                question_order=index,
-                created_at=datetime.now(timezone.utc),
+
+        persisted_questions = []
+
+        for question_order, item in enumerate(questions, start=1):
+            persisted_questions.append(
+                SimpleNamespace(
+                    id=self.next_question_id,
+                    session_id=session.id,
+                    question=item.question,
+                    question_category=item.category,
+                    difficulty=item.difficulty,
+                    priority=item.priority,
+                    reason=item.reason,
+                    question_order=question_order,
+                    created_at=datetime.now(timezone.utc),
+                )
             )
-            for index, item in enumerate(questions, start=1)
-        ]
+
+            self.next_question_id += 1
+
+        self.questions[session.id] = persisted_questions
         self.answers[session.id] = []
+
         self.next_session_id += 1
+
         return session
 
     def get_by_id(self, session_id):
@@ -79,7 +91,7 @@ class FakeRepository:
     def list_questions_by_session_id(self, session_id):
         return sorted(
             self.questions.get(session_id, []),
-            key=lambda item: item.question_order,
+            key=lambda item: (item.question_order, item.id),
         )
 
     def list_answered_question_ids_by_session_id(self, session_id):
@@ -87,6 +99,19 @@ class FakeRepository:
             answer.question_id
             for answer in self.answers.get(session_id, [])
         }
+
+    def get_next_unanswered_question(self, session_id):
+        answered_question_ids = (
+            self.list_answered_question_ids_by_session_id(
+                session_id
+            )
+        )
+
+        for question in self.list_questions_by_session_id(session_id):
+            if question.id not in answered_question_ids:
+                return question
+
+        return None
 
     def create_answer(self, session_id, question, answer):
         item = SimpleNamespace(
@@ -273,6 +298,189 @@ def test_list_questions_marks_multiple_answered_questions_true(
     result = service.list_questions(session.id)
 
     assert [item.answered for item in result] == [True, True]
+
+
+def test_next_question_returns_first_unanswered_question(
+    repositories,
+):
+    session = create_session(repositories)
+
+    result = InterviewSessionService(object()).get_next_question(
+        session.id
+    )
+
+    assert result.question == "First"
+    assert result.question_order == 1
+    assert result.answered is False
+
+
+def test_next_question_skips_answered_first_question(
+    repositories,
+):
+    session = create_session(repositories)
+    first_question = repositories.questions[session.id][0]
+
+    service = InterviewSessionService(object())
+    service.submit_answer(
+        session.id,
+        InterviewAnswerCreate(
+            question_id=first_question.id,
+            answer="Answer for the first question.",
+        ),
+    )
+
+    result = service.get_next_question(session.id)
+
+    assert result.question == "Second"
+    assert result.question_order == 2
+    assert result.answered is False
+
+
+def test_next_question_skips_multiple_answered_questions(
+    repositories,
+):
+    session = create_session(repositories)
+    repositories.questions[session.id].append(
+        SimpleNamespace(
+            id=3,
+            session_id=session.id,
+            question="Third",
+            question_category="job_specific",
+            difficulty="hard",
+            priority="high",
+            reason="Job-specific requirement.",
+            question_order=3,
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+
+    service = InterviewSessionService(object())
+    service.submit_answer(
+        session.id,
+        InterviewAnswerCreate(
+            question_id=1,
+            answer="Answer one.",
+        ),
+    )
+    service.submit_answer(
+        session.id,
+        InterviewAnswerCreate(
+            question_id=2,
+            answer="Answer two.",
+        ),
+    )
+
+    result = service.get_next_question(session.id)
+
+    assert result.question == "Third"
+    assert result.question_order == 3
+    assert result.answered is False
+
+
+def test_next_question_uses_question_order_then_id(
+    repositories,
+):
+    session = create_session(repositories)
+    repositories.questions[session.id] = [
+        SimpleNamespace(
+            id=30,
+            session_id=session.id,
+            question="Later question",
+            question_category="technical",
+            difficulty="medium",
+            priority="high",
+            reason="Later order.",
+            question_order=2,
+            created_at=datetime.now(timezone.utc),
+        ),
+        SimpleNamespace(
+            id=20,
+            session_id=session.id,
+            question="Tie second",
+            question_category="technical",
+            difficulty="medium",
+            priority="high",
+            reason="Tie order.",
+            question_order=1,
+            created_at=datetime.now(timezone.utc),
+        ),
+        SimpleNamespace(
+            id=10,
+            session_id=session.id,
+            question="Tie first",
+            question_category="technical",
+            difficulty="medium",
+            priority="high",
+            reason="Tie order.",
+            question_order=1,
+            created_at=datetime.now(timezone.utc),
+        ),
+    ]
+
+    result = InterviewSessionService(object()).get_next_question(
+        session.id
+    )
+
+    assert result.id == 10
+    assert result.question == "Tie first"
+
+
+def test_next_question_rejects_all_answered_session(
+    repositories,
+):
+    session = create_session(repositories)
+    service = InterviewSessionService(object())
+
+    for question in repositories.questions[session.id]:
+        service.submit_answer(
+            session.id,
+            InterviewAnswerCreate(
+                question_id=question.id,
+                answer=f"Answer for question {question.id}.",
+            ),
+        )
+
+    with pytest.raises(NoUnansweredInterviewQuestionError):
+        service.get_next_question(session.id)
+
+
+def test_next_question_rejects_session_with_zero_questions(
+    repositories,
+):
+    session = create_session(repositories)
+    repositories.questions[session.id] = []
+
+    with pytest.raises(NoUnansweredInterviewQuestionError):
+        InterviewSessionService(object()).get_next_question(session.id)
+
+
+def test_next_question_rejects_missing_session(repositories):
+    with pytest.raises(InterviewSessionNotFoundError):
+        InterviewSessionService(object()).get_next_question(999)
+
+
+def test_next_question_ignores_answers_from_other_sessions(
+    repositories,
+):
+    first_session = create_session(repositories)
+    second_session = create_session(repositories)
+    second_question = repositories.questions[second_session.id][0]
+
+    InterviewSessionService(object()).submit_answer(
+        second_session.id,
+        InterviewAnswerCreate(
+            question_id=second_question.id,
+            answer="Answer in a different session.",
+        ),
+    )
+
+    result = InterviewSessionService(object()).get_next_question(
+        first_session.id
+    )
+
+    assert result.session_id == first_session.id
+    assert result.question == "First"
+    assert result.answered is False
 
 
 def test_missing_session_rejected_when_listing_questions(
