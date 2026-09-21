@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import AppShell from './components/layout/AppShell'
 import Dashboard from './components/dashboard/Dashboard'
+import ResumeWorkspace from './components/resume/ResumeWorkspace'
 
 function App() {
   const [backendStatus, setBackendStatus] = useState('loading')
@@ -27,6 +28,13 @@ function App() {
       }
     }
 
+    if (activeSection === 'Resume') {
+      return {
+        title: 'Resume',
+        description: 'Upload once. Turn your resume into structured career intelligence.',
+      }
+    }
+
     return {
       title: activeSection,
       description: 'This section will be connected in a later slice.',
@@ -43,6 +51,8 @@ function App() {
     >
       {activeSection === 'Overview' ? (
         <Dashboard />
+      ) : activeSection === 'Resume' ? (
+        <ResumeWorkspace />
       ) : (
         <section className="rounded-[var(--radius-lg)] border border-[var(--cl-border)] bg-[var(--cl-surface)] p-8 shadow-[var(--shadow-soft)]">
           <p className="text-sm font-medium uppercase tracking-[0.22em] text-[var(--cl-accent)]">
