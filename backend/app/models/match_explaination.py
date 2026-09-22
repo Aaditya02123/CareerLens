@@ -1,4 +1,22 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+
+class MatchEvidence(BaseModel):
+    """Evidence from the resume supporting a matched job skill."""
+
+    skill: str
+    source_type: Literal[
+        "skill",
+        "project",
+        "experience",
+        "education",
+        "certification",
+    ]
+    source_title: str
+    excerpt: str
+    strength: Literal["direct", "supporting"]
 
 
 class MatchExplanationResponse(BaseModel):
@@ -27,9 +45,17 @@ class MatchExplanationResponse(BaseModel):
         le=1.0,
     )
 
-    matched_required_skills: list[str] = Field(default_factory=list)
-    missing_required_skills: list[str] = Field(default_factory=list)
-    matched_preferred_skills: list[str] = Field(default_factory=list)
+    matched_required_skills: list[str] = Field(
+        default_factory=list,
+    )
+
+    missing_required_skills: list[str] = Field(
+        default_factory=list,
+    )
+
+    matched_preferred_skills: list[str] = Field(
+        default_factory=list,
+    )
 
     match_level: str
 
@@ -37,4 +63,10 @@ class MatchExplanationResponse(BaseModel):
         ge=0,
     )
 
-    primary_factors: list[str] = Field(default_factory=list)
+    primary_factors: list[str] = Field(
+        default_factory=list,
+    )
+
+    evidence: list[MatchEvidence] = Field(
+        default_factory=list,
+    )
