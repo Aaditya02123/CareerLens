@@ -2,7 +2,17 @@ from __future__ import annotations
 
 import json
 
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.models.job_explanation import JobExplanationResult
 from app.models.match_explaination import MatchEvidence
+from app.repositories.job_repository import JobRepository
+from app.services.hybrid_matching_service import JobNotFoundError
+from app.services.job_explanation_generator import JobExplanationGenerator
+from app.services.llm.generator import LLMGenerationProvider
+from app.services.llm.ollama_generator import OllamaGenerationProvider
+from app.services.match_explaination_service import explain_match
 
 
 JOB_EXPLANATION_SYSTEM_PROMPT = """
@@ -76,8 +86,8 @@ fits. Do not output the "WHY IT FITS" heading itself.
 Use only the supplied matched skills and resume evidence. The role metadata
 describes the target role but is never evidence that the candidate possesses
 a skill. Preserve the evidence source and strength accurately. Do not invent
-facts, qualifications, scores, or external recommendations. Do not add a
-heading, Markdown, or any additional sections.
+facts, qualifications, scores, or external recommendations. Do not add
+a heading, Markdown, or any additional sections.
 
 Context:
 {json.dumps(context, ensure_ascii=False, indent=2)}
@@ -105,9 +115,7 @@ def build_deterministic_gap(
     if len(skills) == 2:
         joined = f"{skills[0]} and {skills[1]}"
     else:
-        joined = (
-            f"{', '.join(skills[:-1])}, and {skills[-1]}"
-        )
+        joined = f"{', '.join(skills[:-1])}, and {skills[-1]}"
 
     return (
         "The required skills currently missing from the resume "
@@ -128,19 +136,19 @@ def build_deterministic_next_step(
 
     if missing:
         if len(missing) == 1:
-            joined = missing[0]
-        elif len(missing) == 2:
-            joined = f"{missing[0]} and {missing[1]}"
-        else:
-            joined = (
-                f"{', '.join(missing[:-1])}, and {missing[-1]}"
+            return (
+                f"Prioritize developing {missing[0]} because it is "
+                "the remaining required-skill gap."
             )
 
-        plural = "skill gap" if len(missing) == 1 else "skill gaps"
+        if len(missing) == 2:
+            joined = f"{missing[0]} and {missing[1]}"
+        else:
+            joined = f"{', '.join(missing[:-1])}, and {missing[-1]}"
 
         return (
-            f"Prioritize developing {joined} because "
-            f"{'it is the remaining required-skill gap' if len(missing) == 1 else f'they are the remaining required-skill {plural}' }."
+            f"Prioritize developing {joined} because they are the "
+            "remaining required-skill gaps."
         )
 
     source_types = {
@@ -169,6 +177,7 @@ def build_deterministic_next_step(
 
 def _is_section_heading(line: str, heading: str) -> bool:
     normalized = line.strip().upper()
+
     return normalized in {
         heading,
         f"**{heading}**",
@@ -220,22 +229,68 @@ def _sanitize_why_it_fits(value: str) -> str:
 def compose_job_explanation(
     *,
     why_it_fits: str,
-    missing_required_skills: list[str],
-    matched_required_skills: list[str],
-    evidence: list[MatchEvidence],
+    gap: str,
+    next_step: str,
 ) -> str:
-    why = _sanitize_why_it_fits(why_it_fits)
-    gap = build_deterministic_gap(
-        missing_required_skills
-    )
-    next_step = build_deterministic_next_step(
-        missing_required_skills,
-        matched_required_skills,
-        evidence,
-    )
-
     return (
-        f"WHY IT FITS\n{why}\n\n"
+        f"WHY IT FITS\n{why_it_fits}\n\n"
         f"GAP\n{gap}\n\n"
         f"NEXT STEP\n{next_step}"
+    )
+
+
+def generate_job_explanation(
+    *,
+    resume_id: int,
+    job_id: int,
+    session: Session,
+    provider: LLMGenerationProvider | None = None,
+) -> JobExplanationResult:
+    deterministic = explain_match(
+        resume_id=resume_id,
+        job_id=job_id,
+        session=session,
+    )
+
+    job = JobRepository(session).get_by_id(job_id)
+
+    if job is None:
+        raise JobNotFoundError(
+            "The requested job was not found."
+        )
+
+    generator = JobExplanationGenerator(
+        provider=provider or OllamaGenerationProvider(),
+    )
+
+    why_it_fits = _sanitize_why_it_fits(
+        generator.generate(
+            explanation=deterministic,
+            job_title=job.title,
+            company=job.company,
+        )
+    )
+
+    gap = build_deterministic_gap(
+        deterministic.missing_required_skills
+    )
+
+    next_step = build_deterministic_next_step(
+        deterministic.missing_required_skills,
+        deterministic.matched_required_skills,
+        deterministic.evidence,
+    )
+
+    return JobExplanationResult(
+        resume_id=deterministic.resume_id,
+        job_id=deterministic.job_id,
+        hybrid_score=deterministic.hybrid_score,
+        why_it_fits=why_it_fits,
+        gap=gap,
+        next_step=next_step,
+        explanation=compose_job_explanation(
+            why_it_fits=why_it_fits,
+            gap=gap,
+            next_step=next_step,
+        ),
     )

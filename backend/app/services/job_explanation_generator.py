@@ -1,10 +1,6 @@
 from __future__ import annotations
 
 from app.models.match_explaination import MatchExplanationResponse
-from app.services.job_explanation_service import (
-    JOB_EXPLANATION_SYSTEM_PROMPT,
-    build_job_explanation_prompt,
-)
 from app.services.llm.generator import LLMGenerationProvider
 
 
@@ -21,6 +17,11 @@ class JobExplanationGenerator:
         job_title: str,
         company: str | None,
     ) -> str:
+        from app.services.job_explanation_service import (
+            JOB_EXPLANATION_SYSTEM_PROMPT,
+            build_job_explanation_prompt,
+        )
+
         prompt = build_job_explanation_prompt(
             job_title=job_title,
             company=company,
