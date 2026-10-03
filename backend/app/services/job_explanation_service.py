@@ -8,90 +8,25 @@ from app.models.match_explaination import MatchEvidence
 JOB_EXPLANATION_SYSTEM_PROMPT = """
 You are CareerLens, a career intelligence assistant.
 
-Your task is to explain an already-computed candidate-to-job match.
-The deterministic CareerLens matching system has already calculated the
-match and extracted the resume evidence. Your job is ONLY to communicate
-those supplied results clearly.
+Generate only the candidate-facing WHY IT FITS content for an already-computed
+job match. The deterministic CareerLens matching system is authoritative.
 
-The supplied data is authoritative.
-
-STRICT FACTUAL RULES:
-
-- matched_required_skills contains skills that ARE matched required skills.
-- missing_required_skills contains required skills that ARE NOT matched.
-- matched_preferred_skills contains skills that ARE matched preferred skills.
-- Never say that a skill in matched_required_skills is missing.
-- Never say that a skill in missing_required_skills is matched.
-- Never claim that a matched skill is unrelated to the job requirement.
-- Never reinterpret or recalculate the supplied scores.
-- Never assign your own meaning such as "strong", "moderate", or "weak"
-  to a numeric score unless the supplied match_level or textual context
-  explicitly supports that description.
-- match_level is authoritative for the overall match.
-- If match_level is "partial", describe the overall match as partial.
-- Do not describe a partial match as strong, excellent, complete, or perfect.
-- Do not infer candidate-job alignment merely because the job title,
-  company name, or other metadata matches.
-- Do not make hiring, employability, success, or selection predictions.
-
-EVIDENCE RULES:
-
-- Use only the supplied resume_evidence.
-- source_type="skill" means the evidence comes from the candidate's
-  technical skills.
-- source_type="project" means the evidence comes from a project.
-- source_type="experience" means the evidence comes from work experience.
-- source_type="education" means the evidence comes from education.
-- source_type="certification" means the evidence comes from a certification.
-- strength="direct" means direct evidence.
-- strength="supporting" means supporting evidence.
-- Never change the supplied source_type or strength.
-- Never invent additional resume evidence.
-- Do not claim that a skill came from a project, experience, education,
-  or certification unless the supplied source_type explicitly says so.
-- When connecting a matched skill to resume evidence, use the evidence
-  item's source_title and excerpt. Never use the job title, company name,
-  or other job metadata as resume evidence.
-
-PRACTICAL NEXT STEP RULES:
-
-- If missing_required_skills is not empty, the practical next step must
-  focus on those missing required skills.
-- Do not recommend improving a skill that is already in
-  matched_required_skills when a required skill gap exists.
-- Do not invent courses, certifications, websites, companies, products,
-  learning platforms, or other external resources.
-- Keep the recommendation general and directly connected to the supplied
-  skill gap.
-- If there are no missing required skills, do not invent a skill gap.
-
-WRITING RULES:
-
-- Be concise.
-- Avoid repeating the same fact.
-- Focus on concrete evidence.
-- Do not mention internal field names such as "matched_required_skills",
-  "source_type", "semantic_score", or "hybrid_score".
-- Do not expose raw numeric scores unless specifically useful.
-- Do not mention that you are an AI or language model.
-- Return plain text only.
-- A job title describes the role; it is never evidence that the candidate
-  possesses a skill.
-  
-Use exactly these four sections:
-
-1. Why you match
-   State the most important matched required or preferred skills.
-
-2. Resume evidence
-   Connect those matched skills to the supplied resume evidence.
-
-3. Skill gap
-   State the missing required skills, if any.
-
-4. Practical next step
-   Give one concise next step based only on the supplied missing
-   required skills.
+Never invent skills, resume evidence, qualifications, or experience.
+Use only supplied resume evidence when discussing the candidate.
+Never use the job title, company, location, or other job metadata as evidence.
+Never use job metadata as evidence that the candidate possesses a skill.
+Preserve supplied evidence source_type, source_title, excerpt, and strength.
+Never describe supporting evidence as direct evidence.
+Never reinterpret scores 
+Never change matched/missing skill status.
+Do not make hiring, employability, success, or selection predictions.
+Do not recommend external courses, websites, certifications, products,
+companies, or learning platforms unless explicitly supplied.
+Do not expose internal field names.
+Return only the WHY IT FITS content, without a heading.
+Keep it to one or two concise sentences.
+Plain text only. Do not use Markdown.
+Do not include any additional sections.
 """.strip()
 
 
@@ -121,39 +56,186 @@ def build_job_explanation_prompt(
     ]
 
     context = {
-        "job": {
+        "role": {
             "title": job_title,
             "company": company,
         },
-        "match": {
-            "level": match_level,
-            "hybrid_score": hybrid_score,
-            "required_skill_score": required_skill_score,
-            "preferred_skill_score": preferred_skill_score,
-            "semantic_score": semantic_score,
-        },
-        "skills": {
-            "matched_required": matched_required_skills,
-            "missing_required": missing_required_skills,
-            "matched_preferred": matched_preferred_skills,
+        "matched_skills": {
+            "required": matched_required_skills,
+            "preferred": matched_preferred_skills,
         },
         "resume_evidence": evidence_payload,
     }
 
     return f"""
-Explain this already-computed CareerLens job match.
+Write only the WHY IT FITS content for this candidate-to-job match.
 
-Use the supplied match results and resume evidence exactly as provided.
+Return one or two concise plain-text sentences explaining why the match
+fits. Do not output the "WHY IT FITS" heading itself.
 
-Requirements:
-- Explain the matched required/preferred skills.
-- Connect matched skills to the supplied resume evidence.
-- Clearly identify missing required skills.
-- If a required skill is missing, make it the focus of the practical
-  next step.
-- Do not add facts, evidence, scores, recommendations, or qualifications
-  that are not present in the context.
+Use only the supplied matched skills and resume evidence. The role metadata
+describes the target role but is never evidence that the candidate possesses
+a skill. Preserve the evidence source and strength accurately. Do not invent
+facts, qualifications, scores, or external recommendations. Do not add a
+heading, Markdown, or any additional sections.
 
 Context:
 {json.dumps(context, ensure_ascii=False, indent=2)}
 """.strip()
+
+
+def build_deterministic_gap(
+    missing_required_skills: list[str],
+) -> str:
+    skills = [
+        skill.strip()
+        for skill in missing_required_skills
+        if skill and skill.strip()
+    ]
+
+    if not skills:
+        return "No required skill gaps were detected."
+
+    if len(skills) == 1:
+        return (
+            f"{skills[0]} is a required skill that is currently "
+            "missing from the resume analysis."
+        )
+
+    if len(skills) == 2:
+        joined = f"{skills[0]} and {skills[1]}"
+    else:
+        joined = (
+            f"{', '.join(skills[:-1])}, and {skills[-1]}"
+        )
+
+    return (
+        "The required skills currently missing from the resume "
+        f"analysis are {joined}."
+    )
+
+
+def build_deterministic_next_step(
+    missing_required_skills: list[str],
+    matched_required_skills: list[str],
+    evidence: list[MatchEvidence],
+) -> str:
+    missing = [
+        skill.strip()
+        for skill in missing_required_skills
+        if skill and skill.strip()
+    ]
+
+    if missing:
+        if len(missing) == 1:
+            joined = missing[0]
+        elif len(missing) == 2:
+            joined = f"{missing[0]} and {missing[1]}"
+        else:
+            joined = (
+                f"{', '.join(missing[:-1])}, and {missing[-1]}"
+            )
+
+        plural = "skill gap" if len(missing) == 1 else "skill gaps"
+
+        return (
+            f"Prioritize developing {joined} because "
+            f"{'it is the remaining required-skill gap' if len(missing) == 1 else f'they are the remaining required-skill {plural}' }."
+        )
+
+    source_types = {
+        item.source_type.strip().lower()
+        for item in evidence
+        if item.source_type and item.source_type.strip()
+    }
+
+    if {"project", "experience"} & source_types:
+        return (
+            "Focus on demonstrating your existing resume evidence through "
+            "concrete project outcomes and implementation details."
+        )
+
+    if {"education", "certification", "skill"} & source_types:
+        return (
+            "Focus on communicating the existing resume evidence clearly "
+            "through concrete examples."
+        )
+
+    return (
+        "Focus on communicating the existing resume alignment clearly "
+        "through concrete examples from your resume."
+    )
+
+
+def _is_section_heading(line: str, heading: str) -> bool:
+    normalized = line.strip().upper()
+    return normalized in {
+        heading,
+        f"**{heading}**",
+        f"## {heading}",
+    }
+
+
+def _sanitize_why_it_fits(value: str) -> str:
+    lines = [
+        line.strip()
+        for line in value.replace("\r\n", "\n").split("\n")
+        if line.strip()
+    ]
+
+    if not lines:
+        return (
+            "The supplied resume evidence supports the deterministic "
+            "match."
+        )
+
+    why_start = next(
+        (
+            index
+            for index, line in enumerate(lines)
+            if _is_section_heading(line, "WHY IT FITS")
+        ),
+        None,
+    )
+
+    if why_start is not None:
+        lines = lines[why_start + 1 :]
+
+    for index, line in enumerate(lines):
+        if _is_section_heading(line, "GAP") or _is_section_heading(
+            line,
+            "NEXT STEP",
+        ):
+            lines = lines[:index]
+            break
+
+    cleaned = " ".join(lines)
+    cleaned = cleaned.replace("```", "").strip()
+
+    return cleaned or (
+        "The supplied resume evidence supports the deterministic match."
+    )
+
+
+def compose_job_explanation(
+    *,
+    why_it_fits: str,
+    missing_required_skills: list[str],
+    matched_required_skills: list[str],
+    evidence: list[MatchEvidence],
+) -> str:
+    why = _sanitize_why_it_fits(why_it_fits)
+    gap = build_deterministic_gap(
+        missing_required_skills
+    )
+    next_step = build_deterministic_next_step(
+        missing_required_skills,
+        matched_required_skills,
+        evidence,
+    )
+
+    return (
+        f"WHY IT FITS\n{why}\n\n"
+        f"GAP\n{gap}\n\n"
+        f"NEXT STEP\n{next_step}"
+    )

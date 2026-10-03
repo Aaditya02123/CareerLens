@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 
 import {
+  fetchAiJobExplanation,
   fetchJobRecommendations,
   fetchJobs,
   fetchMatchExplanation,
@@ -80,9 +87,22 @@ export default function JobsWorkspace() {
   })
 
   const [selectedJob, setSelectedJob] = useState(null)
-  const [matchExplanation, setMatchExplanation] = useState(null)
-  const [matchExplanationLoading, setMatchExplanationLoading] = useState(false)
-  const [matchExplanationError, setMatchExplanationError] = useState('')
+
+  const [matchExplanation, setMatchExplanation] =
+    useState(null)
+  const [matchExplanationLoading, setMatchExplanationLoading] =
+    useState(false)
+  const [matchExplanationError, setMatchExplanationError] =
+    useState('')
+
+  const [aiExplanation, setAiExplanation] =
+    useState(null)
+  const [aiExplanationLoading, setAiExplanationLoading] =
+    useState(false)
+  const [aiExplanationError, setAiExplanationError] =
+    useState('')
+
+  const aiRequestIdRef = useRef(0)
 
   const loadJobs = useCallback(async () => {
     setLoading(true)
@@ -128,10 +148,55 @@ export default function JobsWorkspace() {
       setLoading(false)
     }
   }, [])
-  const handleSelectJob = async (job) => {
+
+  const loadAiExplanation = useCallback(
+    async (resumeId, jobId, requestId) => {
+      setAiExplanationLoading(true)
+      setAiExplanationError('')
+
+      try {
+        const explanation =
+          await fetchAiJobExplanation(
+            resumeId,
+            jobId
+          )
+
+        if (requestId !== aiRequestIdRef.current) {
+          return
+        }
+
+        setAiExplanation(explanation)
+      } catch {
+        if (requestId !== aiRequestIdRef.current) {
+          return
+        }
+
+        setAiExplanationError(
+          'AI career insight is temporarily unavailable.'
+        )
+      } finally {
+        if (requestId === aiRequestIdRef.current) {
+          setAiExplanationLoading(false)
+        }
+      }
+    },
+    []
+  )
+
+  // frontend/src/components/jobs/JobsWorkspace.jsx
+
+  const handleSelectJob = (job) => {
+    const requestId = ++aiRequestIdRef.current
+
     setSelectedJob(job)
+
     setMatchExplanation(null)
     setMatchExplanationError('')
+    setMatchExplanationLoading(false)
+
+    setAiExplanation(null)
+    setAiExplanationError('')
+    setAiExplanationLoading(false)
 
     if (!resume?.id || !job?.id) {
       return
@@ -139,21 +204,42 @@ export default function JobsWorkspace() {
 
     setMatchExplanationLoading(true)
 
-    try {
-      const explanation = await fetchMatchExplanation(
-        resume.id,
-        job.id
-      )
+    void loadAiExplanation(
+      resume.id,
+      job.id,
+      requestId
+    )
 
-      setMatchExplanation(explanation)
-    } catch (requestError) {
-      setMatchExplanationError(
-        requestError?.message ||
-          'CareerLens could not load match intelligence.'
-      )
-    } finally {
-      setMatchExplanationLoading(false)
+    fetchMatchExplanation(resume.id, job.id)
+      .then((explanation) => {
+        setMatchExplanation(explanation)
+      })
+      .catch((requestError) => {
+        setMatchExplanationError(
+          requestError?.message ||
+            'CareerLens could not load match intelligence.'
+        )
+      })
+      .finally(() => {
+        setMatchExplanationLoading(false)
+      })
+  }
+
+  const handleRetryAiExplanation = () => {
+    if (!resume?.id || !selectedJob?.id) {
+      return
     }
+
+    const requestId = ++aiRequestIdRef.current
+
+    setAiExplanation(null)
+    setAiExplanationError('')
+
+    void loadAiExplanation(
+      resume.id,
+      selectedJob.id,
+      requestId
+    )
   }
 
   useEffect(() => {
@@ -473,10 +559,19 @@ export default function JobsWorkspace() {
           explanation={matchExplanation}
           loading={matchExplanationLoading}
           error={matchExplanationError}
+          aiExplanation={aiExplanation}
+          aiLoading={aiExplanationLoading}
+          aiError={aiExplanationError}
+          onRetryAi={handleRetryAiExplanation}
           onClose={() => {
+            aiRequestIdRef.current += 1
+
             setSelectedJob(null)
             setMatchExplanation(null)
             setMatchExplanationError('')
+            setAiExplanation(null)
+            setAiExplanationError('')
+            setAiExplanationLoading(false)
           }}
         />
       </div>

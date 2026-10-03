@@ -62,11 +62,74 @@ function SkillList({
   )
 }
 
-export default function JobIntelligenceModal({
+// frontend/src/components/jobs/JobIntelligenceModel.jsx
+
+function AiCareerInsight({
+  explanation,
+  loading,
+  error,
+  onRetry,
+}) {
+  return (
+    <section className="rounded-xl border border-sky-300/15 bg-sky-300/[0.035] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-200/75">
+            AI career insight
+          </p>
+
+          <h3 className="mt-2 text-lg font-medium tracking-[-0.02em] text-white">
+            Grounded perspective on this match
+          </h3>
+        </div>
+
+        <span className="rounded-full border border-sky-200/15 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-sky-100/50">
+          Supplementary
+        </span>
+      </div>
+
+      {loading ? (
+        <div className="mt-4 space-y-2">
+          <div className="h-3 animate-pulse rounded bg-white/[0.08]" />
+          <div className="h-3 w-11/12 animate-pulse rounded bg-white/[0.08]" />
+          <div className="h-3 w-4/5 animate-pulse rounded bg-white/[0.08]" />
+        </div>
+      ) : error ? (
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm leading-6 text-white/50">
+            {error}
+          </p>
+
+          <button
+            type="button"
+            onClick={onRetry}
+            className="shrink-0 rounded-lg border border-sky-200/20 px-3 py-2 text-xs font-medium text-sky-100/75 transition hover:bg-sky-200/10 hover:text-white"
+          >
+            Retry
+          </button>
+        </div>
+      ) : explanation?.explanation ? (
+        <p className="mt-4 whitespace-pre-line text-sm leading-7 text-white/65">
+          {explanation.explanation}
+        </p>
+      ) : (
+        <p className="mt-4 text-sm leading-6 text-white/45">
+          No supplementary AI insight is available for this role yet.
+        </p>
+      )}
+    </section>
+  )
+}
+
+export default function JobIntelligenceModel({
   job,
   explanation,
   loading,
   error,
+  aiExplanation,
+  aiLoading,
+  aiError,
+  onRetryAi,
   onClose,
 }) {
   if (!job) {
@@ -164,6 +227,13 @@ export default function JobIntelligenceModal({
               </p>
             </section>
 
+            <AiCareerInsight
+              explanation={aiExplanation}
+              loading={aiLoading}
+              error={aiError}
+              onRetry={onRetryAi}
+            />
+
             <section className="grid gap-6 sm:grid-cols-2">
               <SkillList
                 title="Matched required skills"
@@ -203,61 +273,61 @@ export default function JobIntelligenceModal({
                   </div>
                 </section>
               )}
-              
-              {Array.isArray(explanation.evidence) &&
-                explanation.evidence.length > 0 && (
-                    <section>
-                    <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
-                        Resume evidence
-                        </p>
 
-                        <h3 className="mt-2 text-xl font-medium tracking-[-0.02em] text-white">
-                        What in your resume supports this match
-                        </h3>
+            {Array.isArray(explanation.evidence) &&
+              explanation.evidence.length > 0 && (
+                <section>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+                      Resume evidence
+                    </p>
 
-                        <p className="mt-2 max-w-2xl text-sm leading-6 text-white/45">
-                        CareerLens found the following evidence in your
-                        resume analysis for the skills matched to this role.
-                        </p>
-                    </div>
+                    <h3 className="mt-2 text-xl font-medium tracking-[-0.02em] text-white">
+                      What in your resume supports this match
+                    </h3>
 
-                    <div className="mt-5 space-y-3">
-                        {explanation.evidence.map((item, index) => (
-                        <article
-                            key={`${item.skill}-${item.source_type}-${item.source_title}-${index}`}
-                            className="rounded-xl border border-white/7 bg-white/[0.02] p-4"
-                        >
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                <span className="rounded-md border border-[#d6b36a]/15 bg-[#d6b36a]/[0.04] px-2 py-1 text-[11px] font-medium text-[#e5c57c]">
-                                    {item.skill}
-                                </span>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-white/45">
+                      CareerLens found the following evidence in your
+                      resume analysis for the skills matched to this role.
+                    </p>
+                  </div>
 
-                                <span className="text-[10px] uppercase tracking-[0.14em] text-white/30">
-                                    {item.source_type}
-                                </span>
-                                </div>
+                  <div className="mt-5 space-y-3">
+                    {explanation.evidence.map((item, index) => (
+                      <article
+                        key={`${item.skill}-${item.source_type}-${item.source_title}-${index}`}
+                        className="rounded-xl border border-white/7 bg-white/[0.02] p-4"
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-md border border-[#d6b36a]/15 bg-[#d6b36a]/[0.04] px-2 py-1 text-[11px] font-medium text-[#e5c57c]">
+                                {item.skill}
+                              </span>
 
-                                <p className="mt-2 text-sm font-medium text-white/75">
-                                {item.source_title}
-                                </p>
+                              <span className="text-[10px] uppercase tracking-[0.14em] text-white/30">
+                                {item.source_type}
+                              </span>
                             </div>
 
-                            <span className="text-[10px] uppercase tracking-[0.14em] text-white/25">
-                                {item.strength} evidence
-                            </span>
-                            </div>
-
-                            <p className="mt-3 text-sm leading-6 text-white/50">
-                            {item.excerpt}
+                            <p className="mt-2 text-sm font-medium text-white/75">
+                              {item.source_title}
                             </p>
-                        </article>
-                        ))}
-                    </div>
-                    </section>
-                )}
+                          </div>
+
+                          <span className="text-[10px] uppercase tracking-[0.14em] text-white/25">
+                            {item.strength} evidence
+                          </span>
+                        </div>
+
+                        <p className="mt-3 text-sm leading-6 text-white/50">
+                          {item.excerpt}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              )}
 
             <section>
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30">

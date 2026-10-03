@@ -5,6 +5,9 @@ from app.models.match_explaination import (
 from app.services.job_explanation_generator import (
     JobExplanationGenerator,
 )
+from app.services.job_explanation_service import (
+    JOB_EXPLANATION_SYSTEM_PROMPT,
+)
 
 
 class FakeGenerationProvider:
@@ -37,7 +40,6 @@ def make_explanation() -> MatchExplanationResponse:
         matched_required_skills=[
             "Python",
             "FastAPI",
-            "PostgreSQL",
         ],
         missing_required_skills=[],
         matched_preferred_skills=[
@@ -61,9 +63,9 @@ def make_explanation() -> MatchExplanationResponse:
     )
 
 
-def test_generator_calls_provider():
+def test_generator_calls_provider_for_why_it_fits():
     provider = FakeGenerationProvider(
-        response="Strong alignment with backend development."
+        response="Python and FastAPI are supported by project evidence."
     )
 
     generator = JobExplanationGenerator(provider)
@@ -74,7 +76,7 @@ def test_generator_calls_provider():
         company="TechCorp",
     )
 
-    assert result == "Strong alignment with backend development."
+    assert result == provider.response
     assert provider.call_count == 1
 
 
@@ -91,15 +93,16 @@ def test_generator_passes_grounded_context_to_provider():
         company="TechCorp",
     )
 
-    assert provider.system_prompt is not None
+    assert provider.system_prompt == JOB_EXPLANATION_SYSTEM_PROMPT
     assert provider.prompt is not None
-
     assert "Backend Developer" in provider.prompt
     assert "TechCorp" in provider.prompt
     assert "Python" in provider.prompt
     assert "FastAPI" in provider.prompt
     assert "NagarSetu" in provider.prompt
     assert "Built the backend using FastAPI." in provider.prompt
+    assert "GAP" not in provider.prompt
+    assert "NEXT STEP" not in provider.prompt
 
 
 def test_generator_strips_provider_output():

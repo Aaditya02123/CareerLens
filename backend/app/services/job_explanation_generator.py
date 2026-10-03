@@ -9,7 +9,7 @@ from app.services.llm.generator import LLMGenerationProvider
 
 
 class JobExplanationGenerator:
-    """Generate a grounded natural-language explanation for a job match."""
+    """Generate only the grounded WHY IT FITS text."""
 
     def __init__(self, provider: LLMGenerationProvider) -> None:
         self.provider = provider
