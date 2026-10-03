@@ -1,32 +1,56 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# Import the database initialization module so that all SQLAlchemy models
+# are registered before the application handles any ORM queries.
+import app.core.init_db  # noqa: F401
+
 from app.api.applications import router as applications_router
 from app.api.health import router as health_router
 from app.api.hybrid_matching import router as hybrid_matching_router
-from app.api.interview_evaluation import (router as interview_evaluation_router,)
-from app.api.interview_preparation import (router as interview_preparation_router,)
-from app.api.interview_report import (router as interview_report_router,)
-from app.api.interview_sessions import (router as interview_sessions_router,)
+from app.api.interview_evaluation import (
+    router as interview_evaluation_router,
+)
+from app.api.interview_preparation import (
+    router as interview_preparation_router,
+)
+from app.api.interview_report import (
+    router as interview_report_router,
+)
+from app.api.interview_sessions import (
+    router as interview_sessions_router,
+)
 from app.api.job_ranking import router as job_ranking_router
-from app.api.job_recommendation import router as job_recommendation_router
+from app.api.job_recommendation import (
+    router as job_recommendation_router,
+)
 from app.api.jobs import router as jobs_router
 from app.api.learning_roadmap import router as learning_roadmap_router
-from app.api.match_explaination import router as match_explanation_router
+from app.api.match_explaination import (
+    router as match_explanation_router,
+)
 from app.api.matching import router as matching_router
 from app.api.profile import router as profile_router
 from app.api.resume import router as resume_router
-from app.api.semantic_matching import router as semantic_matching_router
+from app.api.semantic_matching import (
+    router as semantic_matching_router,
+)
 from app.api.users import router as users_router
+
 
 app = FastAPI(title="CareerLens API")
 
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173","http://localhost:5173",],
+    allow_origins=[
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+    ],
     allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["*"],
 )
+
 
 app.include_router(health_router)
 app.include_router(profile_router)

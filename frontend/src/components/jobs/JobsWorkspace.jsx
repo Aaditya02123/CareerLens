@@ -103,6 +103,7 @@ export default function JobsWorkspace() {
     useState('')
 
   const aiRequestIdRef = useRef(0)
+  const matchRequestIdRef = useRef(0)
 
   const loadJobs = useCallback(async () => {
     setLoading(true)
@@ -187,6 +188,7 @@ export default function JobsWorkspace() {
 
   const handleSelectJob = (job) => {
     const requestId = ++aiRequestIdRef.current
+    const matchRequestId = ++matchRequestIdRef.current
 
     setSelectedJob(job)
 
@@ -212,16 +214,26 @@ export default function JobsWorkspace() {
 
     fetchMatchExplanation(resume.id, job.id)
       .then((explanation) => {
+        if (matchRequestId !== matchRequestIdRef.current) {
+          return
+        }
+
         setMatchExplanation(explanation)
       })
       .catch((requestError) => {
+        if (matchRequestId !== matchRequestIdRef.current) {
+          return
+        }
+
         setMatchExplanationError(
           requestError?.message ||
             'CareerLens could not load match intelligence.'
         )
       })
       .finally(() => {
-        setMatchExplanationLoading(false)
+        if (matchRequestId === matchRequestIdRef.current) {
+          setMatchExplanationLoading(false)
+        }
       })
   }
 
@@ -565,6 +577,7 @@ export default function JobsWorkspace() {
           onRetryAi={handleRetryAiExplanation}
           onClose={() => {
             aiRequestIdRef.current += 1
+            matchRequestIdRef.current += 1
 
             setSelectedJob(null)
             setMatchExplanation(null)
