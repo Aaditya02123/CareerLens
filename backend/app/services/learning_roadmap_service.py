@@ -4,11 +4,7 @@ from app.models.learning_roadmap import (
     JobLearningRoadmapResponse,
     LearningRoadmapItem,
 )
-from app.services.hybrid_matching_service import (
-    JobNotFoundError,
-    ResumeAnalysisNotFoundError,
-)
-from app.services.match_explaination_service import explain_match
+from app.services.skill_gap_service import get_skill_gap
 
 
 def build_learning_roadmap(
@@ -16,25 +12,42 @@ def build_learning_roadmap(
     job_id: int,
     session: Session,
 ) -> JobLearningRoadmapResponse:
-    """Build a deterministic roadmap from an existing match explanation."""
-    explanation = explain_match(
+    """Build a deterministic roadmap from the authoritative skill-gap analysis."""
+
+    skill_gap = get_skill_gap(
         resume_id=resume_id,
         job_id=job_id,
         session=session,
     )
 
-    roadmap = [
-        LearningRoadmapItem(
-            skill=skill,
-            priority="high",
-            reason="Required skill missing from the resume.",
+    roadmap: list[LearningRoadmapItem] = []
+
+    for item in skill_gap.partial:
+        roadmap.append(
+            LearningRoadmapItem(
+                skill=item.skill,
+                status="partial",
+                priority="medium",
+                reason=(
+                    "Required skill has partial supporting evidence "
+                    "in the resume."
+                ),
+            )
         )
-        for skill in explanation.missing_required_skills
-    ]
+
+    for item in skill_gap.missing:
+        roadmap.append(
+            LearningRoadmapItem(
+                skill=item.skill,
+                status="missing",
+                priority="high",
+                reason="Required skill is missing from the resume.",
+            )
+        )
 
     return JobLearningRoadmapResponse(
-        resume_id=explanation.resume_id,
-        job_id=explanation.job_id,
-        total_missing_skills=len(roadmap),
+        resume_id=skill_gap.resume_id,
+        job_id=skill_gap.job_id,
+        total_items=len(roadmap),
         roadmap=roadmap,
     )
