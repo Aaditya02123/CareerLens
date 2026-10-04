@@ -1,4 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+import { fetchSkillGap } from '../../services/api/skillGap'
+import SkillGapSection from './SkillGapSection'
 
 function formatScore(score) {
   if (typeof score !== 'number') return '—'
@@ -11,6 +14,7 @@ function ScoreCard({ label, score, accent = false }) {
       <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/30">
         {label}
       </p>
+
       <p
         className={[
           'mt-2 text-xl font-medium',
@@ -80,7 +84,6 @@ function isRedundantExcerpt(sourceTitle, excerpt) {
 
   if (!normalizedExcerpt) return true
   if (!normalizedTitle) return false
-
   if (normalizedTitle === normalizedExcerpt) return true
 
   return (
@@ -112,9 +115,6 @@ const SUPPORTING_SOURCE_ORDER = {
 function getEvidenceStrength(item) {
   if (item?.strength === 'direct') return 'direct'
   if (item?.strength === 'supporting') return 'supporting'
-
-  // Safe fallback for malformed/legacy evidence.
-  // Known skill-type evidence historically represents direct resume skills.
   if (item?.source_type === 'skill') return 'direct'
 
   return 'supporting'
@@ -211,7 +211,6 @@ function EvidenceSource({ item, skill, supporting = false }) {
 
   const normalizedSkill = normalizeEvidenceText(skill)
   const normalizedExcerpt = normalizeEvidenceText(item.excerpt)
-  const normalizedSourceTitle = normalizeEvidenceText(sourceTitle)
 
   const excerptIsSameAsSkill =
     normalizedExcerpt &&
@@ -297,16 +296,14 @@ function EvidenceGroup({ group }) {
       </div>
 
       {group.direct.length > 0 && (
-        <div className="mt-4">
-          <div className="space-y-2">
-            {group.direct.map((item, index) => (
-              <EvidenceSource
-                key={`direct-${item.source_type}-${item.source_title}-${index}`}
-                item={item}
-                skill={group.skill}
-              />
-            ))}
-          </div>
+        <div className="mt-4 space-y-2">
+          {group.direct.map((item, index) => (
+            <EvidenceSource
+              key={`direct-${item.source_type}-${item.source_title}-${index}`}
+              item={item}
+              skill={group.skill}
+            />
+          ))}
         </div>
       )}
 
@@ -409,11 +406,92 @@ export default function JobIntelligenceModel({
 }) {
   const closeButtonRef = useRef(null)
   const closeHandlerRef = useRef(onClose)
+  const skillGapRequestIdRef = useRef(0)
+
+  const [skillGap, setSkillGap] = useState(null)
+  const [skillGapLoading, setSkillGapLoading] = useState(false)
+  const [skillGapError, setSkillGapError] = useState('')
+
   const jobId = job?.id
+  const resumeId = explanation?.resume_id
 
   useEffect(() => {
     closeHandlerRef.current = onClose
   }, [onClose])
+
+  const loadSkillGap = useCallback(
+    async (requestResumeId, requestJobId, requestId) => {
+      try {
+        const result = await fetchSkillGap(
+          requestResumeId,
+          requestJobId,
+        )
+
+        if (requestId !== skillGapRequestIdRef.current) {
+          return
+        }
+
+        setSkillGap(result)
+      } catch (requestError) {
+        if (requestId !== skillGapRequestIdRef.current) {
+          return
+        }
+
+        setSkillGapError(
+          requestError?.message ||
+            'CareerLens could not load skill-gap analysis.',
+        )
+      } finally {
+        if (requestId === skillGapRequestIdRef.current) {
+          setSkillGapLoading(false)
+        }
+      }
+    },
+    [],
+  )
+
+  useEffect(() => {
+    const requestId = ++skillGapRequestIdRef.current
+
+    if (!jobId || !resumeId) {
+      setSkillGap(null)
+      setSkillGapLoading(false)
+      setSkillGapError('')
+      return undefined
+    }
+
+    setSkillGap(null)
+    setSkillGapLoading(true)
+    setSkillGapError('')
+
+    void loadSkillGap(
+      resumeId,
+      jobId,
+      requestId,
+    )
+
+    return () => {
+      skillGapRequestIdRef.current += 1
+    }
+  }, [jobId, resumeId, loadSkillGap])
+
+  const handleRetrySkillGap = useCallback(() => {
+    if (!jobId || !resumeId) {
+      return
+    }
+
+    const requestId = ++skillGapRequestIdRef.current
+
+    setSkillGap(null)
+    setSkillGapLoading(true)
+    setSkillGapError('')
+
+    void loadSkillGap(
+      resumeId,
+      jobId,
+      requestId,
+    )
+  }, [jobId, resumeId, loadSkillGap])
 
   useEffect(() => {
     if (!jobId) return undefined
@@ -579,44 +657,17 @@ export default function JobIntelligenceModel({
                 onRetryAi={onRetryAi}
               />
 
-              <section className="rounded-xl border border-[#d6b36a]/10 bg-[#d6b36a]/[0.025] p-5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#d6b36a]">
-                  Skill gap
-                </p>
+              <SkillGapSection
+                data={skillGap}
+                loading={skillGapLoading}
+                error={skillGapError}
+                onRetry={handleRetrySkillGap}
+              />
 
-                {aiExplanation?.gap ? (
-                  <p className="mt-3 text-sm leading-6 text-white/60">
-                    {aiExplanation.gap}
-                  </p>
-                ) : aiError ? (
-                  <p className="mt-3 text-sm leading-6 text-white/40">
-                    The structured gap explanation is temporarily unavailable.
-                  </p>
-                ) : null}
-
-                {Array.isArray(explanation.missing_required_skills) &&
-                  explanation.missing_required_skills.length > 0 && (
-                    <div className="mt-4">
-                      <SkillList
-                        title="Missing required skills"
-                        skills={explanation.missing_required_skills}
-                        tone="missing"
-                      />
-                    </div>
-                  )}
-              </section>
-
-              <section className="grid gap-6 sm:grid-cols-2">
-                <SkillList
-                  title="Matched required skills"
-                  skills={explanation.matched_required_skills}
-                />
-
-                <SkillList
-                  title="Matched preferred skills"
-                  skills={explanation.matched_preferred_skills}
-                />
-              </section>
+              <SkillList
+                title="Matched preferred skills"
+                skills={explanation.matched_preferred_skills}
+              />
 
               <section>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
