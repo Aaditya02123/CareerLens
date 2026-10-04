@@ -35,6 +35,7 @@ from app.api.resume import router as resume_router
 from app.api.semantic_matching import (
     router as semantic_matching_router,
 )
+from app.api.skill_gap import router as skill_gap_router
 from app.api.users import router as users_router
 
 
@@ -64,6 +65,7 @@ app.include_router(job_ranking_router)
 app.include_router(match_explanation_router)
 app.include_router(job_recommendation_router)
 app.include_router(learning_roadmap_router)
+app.include_router(skill_gap_router)
 app.include_router(applications_router)
 app.include_router(interview_preparation_router)
 app.include_router(interview_sessions_router)
