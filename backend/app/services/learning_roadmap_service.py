@@ -20,6 +20,7 @@ def _response_from_persisted_roadmap(
             status=item.skill_gap_status,
             priority=item.priority,
             reason=item.reason,
+            progress_status=item.progress_status,
         )
         for item in roadmap.items
     ]
@@ -68,7 +69,11 @@ def build_learning_roadmap(
                 skill=item.skill,
                 status="partial",
                 priority="medium",
-                reason="Required skill has partial supporting evidence in the resume."
+                reason=(
+                    "Required skill has partial supporting evidence "
+                    "in the resume."
+                ),
+                progress_status="not_started",
             )
         )
 
@@ -79,6 +84,7 @@ def build_learning_roadmap(
                 status="missing",
                 priority="high",
                 reason="Required skill is missing from the resume.",
+                progress_status="not_started",
             )
         )
 

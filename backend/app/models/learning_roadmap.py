@@ -19,6 +19,7 @@ class LearningRoadmapItem(BaseModel):
     status: LearningRoadmapStatus
     priority: LearningRoadmapPriority
     reason: str
+    progress_status: LearningRoadmapProgressStatus
 
 
 class JobLearningRoadmapResponse(BaseModel):

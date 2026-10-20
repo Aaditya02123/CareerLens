@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.main import app
 from app.models.learning_roadmap import (
     JobLearningRoadmapResponse,
+    LearningRoadmapItem,
 )
 
 
@@ -162,7 +163,7 @@ def test_database_error_returns_http_500(
     )
 
 
-def test_existing_roadmap_get_response_contract_is_unchanged(
+def test_roadmap_get_includes_persisted_progress_status(
     monkeypatch,
     client,
 ):
@@ -170,7 +171,15 @@ def test_existing_roadmap_get_response_contract_is_unchanged(
         resume_id=5,
         job_id=1,
         total_items=1,
-        roadmap=[],
+        roadmap=[
+            LearningRoadmapItem(
+                skill="SQL",
+                status="missing",
+                priority="high",
+                reason="SQL is missing from the resume.",
+                progress_status="in_progress",
+            ),
+        ],
     )
 
     mocked_builder = Mock(return_value=expected)
@@ -190,7 +199,15 @@ def test_existing_roadmap_get_response_contract_is_unchanged(
         "resume_id": 5,
         "job_id": 1,
         "total_items": 1,
-        "roadmap": [],
+        "roadmap": [
+            {
+                "skill": "SQL",
+                "status": "missing",
+                "priority": "high",
+                "reason": "SQL is missing from the resume.",
+                "progress_status": "in_progress",
+            },
+        ],
     }
 
     mocked_builder.assert_called_once()

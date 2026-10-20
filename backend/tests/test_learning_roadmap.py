@@ -178,6 +178,14 @@ def test_existing_persisted_roadmap_is_returned(
                 reason="SQL is missing.",
                 progress_status="in_progress",
             ),
+            make_persisted_item(
+                item_id=2,
+                skill="Docker",
+                status="partial",
+                priority="medium",
+                reason="Docker has partial evidence.",
+                progress_status="completed",
+            ),
         ]
     )
     fake_repository.persisted_roadmap = persisted
@@ -203,14 +211,63 @@ def test_existing_persisted_roadmap_is_returned(
     assert isinstance(result, JobLearningRoadmapResponse)
     assert result.resume_id == 5
     assert result.job_id == 1
-    assert result.total_items == 1
-    assert result.roadmap[0].skill == "SQL"
+    assert result.total_items == 2
+    assert [item.skill for item in result.roadmap] == [
+        "SQL",
+        "Docker",
+    ]
     assert result.roadmap[0].status == "missing"
     assert result.roadmap[0].priority == "high"
     assert result.roadmap[0].reason == "SQL is missing."
+    assert result.roadmap[0].progress_status == "in_progress"
+    assert result.roadmap[1].progress_status == "completed"
 
-    assert "progress_status" not in result.model_dump()
     mocked_get_skill_gap.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "progress_status",
+    [
+        "in_progress",
+        "completed",
+    ],
+)
+def test_persisted_progress_status_is_returned(
+    monkeypatch,
+    fake_repository,
+    progress_status,
+):
+    persisted = make_persisted_roadmap(
+        [
+            make_persisted_item(
+                item_id=1,
+                skill="SQL",
+                status="missing",
+                priority="high",
+                reason="SQL is missing.",
+                progress_status=progress_status,
+            ),
+        ]
+    )
+    fake_repository.persisted_roadmap = persisted
+
+    monkeypatch.setattr(
+        service_module,
+        "get_skill_gap",
+        Mock(
+            side_effect=AssertionError(
+                "persisted roadmaps must not be regenerated"
+            )
+        ),
+    )
+
+    result = build_learning_roadmap(
+        resume_id=5,
+        job_id=1,
+        session=Mock(),
+    )
+
+    assert result.roadmap[0].progress_status == progress_status
 
 
 def test_existing_items_are_not_regenerated_or_overwritten(
@@ -247,6 +304,7 @@ def test_existing_items_are_not_regenerated_or_overwritten(
     assert [item.skill for item in result.roadmap] == [
         "Docker",
     ]
+    assert result.roadmap[0].progress_status == "completed"
     assert persisted.items[0].progress_status == "completed"
     assert fake_repository.create_calls == []
     assert fake_repository.add_item_calls == []
@@ -295,9 +353,20 @@ def test_new_roadmap_is_generated_when_none_exists(
         "PostgreSQL",
         "Docker",
     ]
+    assert [
+        item.progress_status
+        for item in result.roadmap
+    ] == [
+        "not_started",
+        "not_started",
+    ]
 
     assert fake_repository.create_calls == [(5, 1)]
     assert len(fake_repository.add_item_calls) == 2
+    assert all(
+    item.progress_status == "not_started"
+    for item in result.roadmap
+    )
     mocked_get_skill_gap.assert_called_once()
 
 
@@ -334,7 +403,10 @@ def test_partial_skills_are_persisted_with_medium_priority(
             "skill": "PostgreSQL",
             "skill_gap_status": "partial",
             "priority": "medium",
-            "reason": "Required skill has partial supporting evidence in the resume.",
+            "reason": (
+                "Required skill has partial supporting evidence "
+                "in the resume."
+            ),
         }
     ]
 
