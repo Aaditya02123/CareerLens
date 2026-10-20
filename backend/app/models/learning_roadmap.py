@@ -1,10 +1,15 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 LearningRoadmapStatus = Literal["partial", "missing"]
 LearningRoadmapPriority = Literal["high", "medium", "low"]
+LearningRoadmapProgressStatus = Literal[
+    "not_started",
+    "in_progress",
+    "completed",
+]
 
 
 class LearningRoadmapItem(BaseModel):
@@ -25,3 +30,19 @@ class JobLearningRoadmapResponse(BaseModel):
     roadmap: list[LearningRoadmapItem] = Field(
         default_factory=list,
     )
+
+
+class LearningRoadmapProgressUpdate(BaseModel):
+    """Request body for changing roadmap-item progress."""
+
+    progress_status: LearningRoadmapProgressStatus
+
+
+class LearningRoadmapProgressResponse(BaseModel):
+    """Updated roadmap-item progress response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    skill: str
+    progress_status: LearningRoadmapProgressStatus
