@@ -14,29 +14,15 @@ import {
 } from '../../services/api/learningRoadmap'
 
 const PROGRESS_OPTIONS = [
-  {
-    value: 'not_started',
-    label: 'Not started',
-  },
-  {
-    value: 'in_progress',
-    label: 'In progress',
-  },
-  {
-    value: 'completed',
-    label: 'Completed',
-  },
+  { value: 'not_started', label: 'Not started' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'completed', label: 'Completed' },
 ]
 
 function sortResumesNewestFirst(resumes) {
   return [...resumes].sort((first, second) => {
-    const firstTime = new Date(
-      first.created_at || 0,
-    ).getTime()
-
-    const secondTime = new Date(
-      second.created_at || 0,
-    ).getTime()
+    const firstTime = new Date(first.created_at || 0).getTime()
+    const secondTime = new Date(second.created_at || 0).getTime()
 
     if (secondTime !== firstTime) {
       return secondTime - firstTime
@@ -60,6 +46,129 @@ function getStatusStyles(status) {
   }
 
   return 'border-amber-300/15 bg-amber-300/[0.035] text-amber-100/75'
+}
+
+function getProgressSummary(items) {
+  const safeItems = Array.isArray(items) ? items : []
+  const total = safeItems.length
+
+  const completed = safeItems.filter(
+    (item) => item?.progress_status === 'completed',
+  ).length
+
+  const inProgress = safeItems.filter(
+    (item) => item?.progress_status === 'in_progress',
+  ).length
+
+  const notStarted = safeItems.filter(
+    (item) => item?.progress_status === 'not_started',
+  ).length
+
+  const completionPercentage =
+    total === 0
+      ? 0
+      : Math.round((completed / total) * 100)
+
+  return {
+    total,
+    completed,
+    inProgress,
+    notStarted,
+    completionPercentage,
+  }
+}
+
+function SummaryMetric({ label, value }) {
+  return (
+    <div className="rounded-xl border border-white/8 bg-white/[0.025] p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">
+        {label}
+      </p>
+
+      <p className="mt-2 text-xl font-medium text-white/85">
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function RoadmapProgressSummary({ summary }) {
+  return (
+    <section
+      className="mb-5 rounded-2xl border border-[#d6b36a]/15 bg-[#d6b36a]/[0.035] p-5"
+      aria-labelledby="roadmap-progress-summary-heading"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+            Progress overview
+          </p>
+
+          <h3
+            id="roadmap-progress-summary-heading"
+            className="mt-2 text-lg font-medium text-white/90"
+          >
+            Learning roadmap progress
+          </h3>
+        </div>
+
+        <span className="text-sm font-medium text-[#e5c57c]/85">
+          {summary.completionPercentage}% complete
+        </span>
+      </div>
+
+      <div className="mt-5">
+        <div
+          className="h-2 overflow-hidden rounded-full bg-white/10"
+          role="progressbar"
+          aria-label="Roadmap completion progress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow={summary.completionPercentage}
+        >
+          <div
+            className="h-full rounded-full bg-[#d6b36a] transition-[width]"
+            style={{
+              width: `${summary.completionPercentage}%`,
+            }}
+          />
+        </div>
+
+        <p className="mt-2 text-xs text-white/40">
+          {summary.completed} of {summary.total} skill
+          {summary.total === 1 ? '' : 's'} completed
+        </p>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryMetric
+          label="Total skills"
+          value={summary.total}
+        />
+
+        <SummaryMetric
+          label="Completed"
+          value={summary.completed}
+        />
+
+        <SummaryMetric
+          label="In progress"
+          value={summary.inProgress}
+        />
+
+        <SummaryMetric
+          label="Not started"
+          value={summary.notStarted}
+        />
+      </div>
+
+      {summary.total === 0 && (
+        <p className="mt-4 text-sm leading-6 text-white/45">
+          There are no roadmap items to track for this job yet.
+        </p>
+      )}
+    </section>
+  )
 }
 
 function RoadmapItem({
@@ -108,19 +217,13 @@ function RoadmapItem({
             id={`roadmap-progress-${item.id}`}
             value={item.progress_status}
             onChange={(event) =>
-              onProgressChange(
-                item.id,
-                event.target.value,
-              )
+              onProgressChange(item.id, event.target.value)
             }
             disabled={isUpdating}
             className="mt-2 min-w-[150px] rounded-lg border border-white/10 bg-[#0b0b0b] px-3 py-2 text-xs text-white/75 outline-none transition focus:border-[#d6b36a]/60 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {PROGRESS_OPTIONS.map((option) => (
-              <option
-                key={option.value}
-                value={option.value}
-              >
+              <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
@@ -170,13 +273,21 @@ export default function RoadmapWorkspace() {
 
   selectedJobIdRef.current = selectedJobId
 
-  const selectedJob = useMemo(() => {
-    return (
-      jobs.find(
-        (job) => String(job.id) === selectedJobId,
-      ) || null
-    )
-  }, [jobs, selectedJobId])
+  const selectedJob = useMemo(
+    () =>
+      jobs.find((job) => String(job.id) === selectedJobId) ||
+      null,
+    [jobs, selectedJobId],
+  )
+
+  const roadmapItems = Array.isArray(roadmap?.roadmap)
+    ? roadmap.roadmap
+    : []
+
+  const progressSummary = useMemo(
+    () => getProgressSummary(roadmapItems),
+    [roadmapItems],
+  )
 
   const invalidateRoadmap = useCallback(() => {
     roadmapRequestIdRef.current += 1
@@ -214,22 +325,15 @@ export default function RoadmapWorkspace() {
     setJobsError('')
 
     try {
-      const jobList = await fetchJobs({
-        limit: 50,
-      })
-
-      const nextJobs = Array.isArray(jobList)
-        ? jobList
-        : []
-
+      const jobList = await fetchJobs({ limit: 50 })
+      const nextJobs = Array.isArray(jobList) ? jobList : []
       const currentSelectedJobId =
         selectedJobIdRef.current
 
       if (
         currentSelectedJobId &&
         !nextJobs.some(
-          (job) =>
-            String(job.id) === currentSelectedJobId,
+          (job) => String(job.id) === currentSelectedJobId,
         )
       ) {
         invalidateRoadmap()
@@ -241,7 +345,6 @@ export default function RoadmapWorkspace() {
       setJobs([])
       invalidateRoadmap()
       setSelectedJobId('')
-
       setJobsError(
         error?.message ||
           'CareerLens could not load available jobs.',
@@ -271,23 +374,16 @@ export default function RoadmapWorkspace() {
 
     setRoadmapLoading(true)
 
-    fetchLearningRoadmap(
-      resume.id,
-      selectedJob.id,
-    )
+    fetchLearningRoadmap(resume.id, selectedJob.id)
       .then((response) => {
-        if (
-          requestId !== roadmapRequestIdRef.current
-        ) {
+        if (requestId !== roadmapRequestIdRef.current) {
           return
         }
 
         setRoadmap(response)
       })
       .catch((error) => {
-        if (
-          requestId !== roadmapRequestIdRef.current
-        ) {
+        if (requestId !== roadmapRequestIdRef.current) {
           return
         }
 
@@ -297,17 +393,11 @@ export default function RoadmapWorkspace() {
         )
       })
       .finally(() => {
-        if (
-          requestId === roadmapRequestIdRef.current
-        ) {
+        if (requestId === roadmapRequestIdRef.current) {
           setRoadmapLoading(false)
         }
       })
-  }, [
-    resume,
-    selectedJob,
-    roadmapRetryKey,
-  ])
+  }, [resume, selectedJob, roadmapRetryKey])
 
   function handleJobChange(event) {
     invalidateRoadmap()
@@ -318,27 +408,19 @@ export default function RoadmapWorkspace() {
     setRoadmapRetryKey((current) => current + 1)
   }
 
-  async function handleProgressChange(
-    itemId,
-    nextStatus,
-  ) {
+  async function handleProgressChange(itemId, nextStatus) {
     const roadmapRequestIdAtRequest =
       roadmapRequestIdRef.current
 
     const nextRequestId =
-      (progressRequestIdsRef.current.get(itemId) ||
-        0) + 1
+      (progressRequestIdsRef.current.get(itemId) || 0) + 1
 
-    progressRequestIdsRef.current.set(
-      itemId,
-      nextRequestId,
-    )
+    progressRequestIdsRef.current.set(itemId, nextRequestId)
 
     const isCurrentProgressRequest = () =>
       progressRequestIdsRef.current.get(itemId) ===
         nextRequestId &&
-      roadmapRequestIdRef.current ===
-        roadmapRequestIdAtRequest
+      roadmapRequestIdRef.current === roadmapRequestIdAtRequest
 
     setUpdatingItems((current) => ({
       ...current,
@@ -351,11 +433,10 @@ export default function RoadmapWorkspace() {
     }))
 
     try {
-      const updatedItem =
-        await updateLearningRoadmapProgress(
-          itemId,
-          nextStatus,
-        )
+      const updatedItem = await updateLearningRoadmapProgress(
+        itemId,
+        nextStatus,
+      )
 
       if (!isCurrentProgressRequest()) {
         return
@@ -369,11 +450,10 @@ export default function RoadmapWorkspace() {
         return {
           ...current,
           roadmap: current.roadmap.map((item) =>
-            item.id === updatedItem.id
+            String(item.id) === String(updatedItem.id)
               ? {
                   ...item,
-                  progress_status:
-                    updatedItem.progress_status,
+                  progress_status: updatedItem.progress_status,
                 }
               : item,
           ),
@@ -391,21 +471,15 @@ export default function RoadmapWorkspace() {
           'Progress could not be updated. Please try again.',
       }))
     } finally {
-      if (!isCurrentProgressRequest()) {
+      if (isCurrentProgressRequest()) {
         setUpdatingItems((current) => {
-            const next = { ...current }
-            delete next[itemId]
-            return next
+          const next = { ...current }
+          delete next[itemId]
+          return next
         })
       }
     }
   }
-
-  const roadmapItems = Array.isArray(
-    roadmap?.roadmap,
-  )
-    ? roadmap.roadmap
-    : []
 
   const hasResume = Boolean(resume)
   const hasJobs = jobs.length > 0
@@ -461,8 +535,7 @@ export default function RoadmapWorkspace() {
                 </p>
               ) : (
                 <p className="mt-3 truncate text-sm text-white/75">
-                  {resume.original_filename ||
-                    'Latest resume'}
+                  {resume.original_filename || 'Latest resume'}
                 </p>
               )}
             </div>
@@ -505,19 +578,12 @@ export default function RoadmapWorkspace() {
                   onChange={handleJobChange}
                   className="mt-3 w-full rounded-lg border border-white/10 bg-[#0b0b0b] px-3 py-2.5 text-sm text-white/75 outline-none transition focus:border-[#d6b36a]/60"
                 >
-                  <option value="">
-                    Select a target job
-                  </option>
+                  <option value="">Select a target job</option>
 
                   {jobs.map((job) => (
-                    <option
-                      key={job.id}
-                      value={job.id}
-                    >
+                    <option key={job.id} value={job.id}>
                       {job.title || 'Untitled role'}
-                      {job.company
-                        ? ` — ${job.company}`
-                        : ''}
+                      {job.company ? ` — ${job.company}` : ''}
                     </option>
                   ))}
                 </select>
@@ -538,8 +604,8 @@ export default function RoadmapWorkspace() {
 
             <p className="mt-2 text-sm leading-6 text-white/45">
               CareerLens uses the latest analyzed resume to
-              identify skills that need attention for a
-              selected job.
+              identify skills that need attention for a selected
+              job.
             </p>
           </section>
         )}
@@ -551,8 +617,8 @@ export default function RoadmapWorkspace() {
             </p>
 
             <p className="mt-2 text-sm leading-6 text-white/40">
-              Select a role above and CareerLens will load
-              the persisted learning plan for that match.
+              Select a role above and CareerLens will load the
+              persisted learning plan for that match.
             </p>
           </section>
         )}
@@ -570,17 +636,14 @@ export default function RoadmapWorkspace() {
                 </p>
 
                 <h2 className="mt-1 text-xl font-medium tracking-[-0.025em]">
-                  {selectedJob.title ||
-                    'Selected opportunity'}
+                  {selectedJob.title || 'Selected opportunity'}
                 </h2>
               </div>
 
               {roadmap && (
                 <span className="text-xs text-white/35">
                   {roadmap.total_items} skill
-                  {roadmap.total_items === 1
-                    ? ''
-                    : 's'} to work on
+                  {roadmap.total_items === 1 ? '' : 's'} to work on
                 </span>
               )}
             </div>
@@ -593,7 +656,7 @@ export default function RoadmapWorkspace() {
                 {[1, 2].map((item) => (
                   <div
                     key={item}
-                    className="h-32 animate-pulse rounded-2xl border border-white/6 bg-white/[0.025]"
+                    className="h-32 rounded-2xl border border-white/6 bg-white/[0.025] animate-pulse"
                   />
                 ))}
               </div>
@@ -618,37 +681,45 @@ export default function RoadmapWorkspace() {
                   Retry
                 </button>
               </div>
-            ) : roadmapItems.length === 0 ? (
-              <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.035] p-6">
-                <p className="text-sm font-medium text-emerald-100/80">
-                  No learning gaps are currently listed.
-                </p>
+            ) : roadmap ? (
+              <>
+                <RoadmapProgressSummary
+                  summary={progressSummary}
+                />
 
-                <p className="mt-2 text-sm leading-6 text-white/40">
-                  Keep building evidence for the skills you
-                  already match and revisit this roadmap as
-                  your target changes.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {roadmapItems.map((item) => (
-                  <RoadmapItem
-                    key={item.id}
-                    item={item}
-                    isUpdating={Boolean(
-                      updatingItems[item.id],
-                    )}
-                    updateError={
-                      progressErrors[item.id] || ''
-                    }
-                    onProgressChange={
-                      handleProgressChange
-                    }
-                  />
-                ))}
-              </div>
-            )}
+                {roadmapItems.length === 0 ? (
+                  <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.035] p-6">
+                    <p className="text-sm font-medium text-emerald-100/80">
+                      No learning gaps are currently listed.
+                    </p>
+
+                    <p className="mt-2 text-sm leading-6 text-white/40">
+                      Keep building evidence for the skills you
+                      already match and revisit this roadmap as
+                      your target changes.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {roadmapItems.map((item) => (
+                      <RoadmapItem
+                        key={item.id}
+                        item={item}
+                        isUpdating={Boolean(
+                          updatingItems[item.id],
+                        )}
+                        updateError={
+                          progressErrors[item.id] || ''
+                        }
+                        onProgressChange={
+                          handleProgressChange
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : null}
           </section>
         )}
       </div>
