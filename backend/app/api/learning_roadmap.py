@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -48,6 +52,12 @@ def get_learning_roadmap(
             detail=str(error),
         ) from error
     except SQLAlchemyError as error:
+        logger.exception(
+            "Database error while building roadmap "
+            "for resume_id=%s, job_id=%s",
+            resume_id,
+            job_id,
+        )
         raise HTTPException(
             status_code=500,
             detail="The learning roadmap could not be calculated.",

@@ -15,6 +15,7 @@ LearningRoadmapProgressStatus = Literal[
 class LearningRoadmapItem(BaseModel):
     """One deterministic learning recommendation derived from a skill gap."""
 
+    id: int
     skill: str
     status: LearningRoadmapStatus
     priority: LearningRoadmapPriority

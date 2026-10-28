@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import AppShell from './components/layout/AppShell'
 import Dashboard from './components/dashboard/Dashboard'
-import ResumeWorkspace from './components/resume/ResumeWorkspace'
 import JobsWorkspace from './components/jobs/JobsWorkspace'
+import ResumeWorkspace from './components/resume/ResumeWorkspace'
+import RoadmapWorkspace from './components/roadmap/RoadmapWorkspace'
 
 function App() {
   const [backendStatus, setBackendStatus] = useState('loading')
@@ -12,7 +13,9 @@ function App() {
     fetch('http://127.0.0.1:8000/health')
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`)
+          throw new Error(
+            `Request failed with status ${response.status}`,
+          )
         }
 
         return response.json()
@@ -25,7 +28,8 @@ function App() {
     if (activeSection === 'Overview') {
       return {
         title: 'Overview',
-        description: 'Your career intelligence workspace is ready.',
+        description:
+          'Your career intelligence workspace is ready.',
       }
     }
 
@@ -45,9 +49,18 @@ function App() {
       }
     }
 
+    if (activeSection === 'Roadmap') {
+      return {
+        title: 'Roadmap',
+        description:
+          'Turn your skill gaps into a focused, trackable learning plan.',
+      }
+    }
+
     return {
       title: activeSection,
-      description: 'This section will be connected in a later slice.',
+      description:
+        'This section will be connected in a later slice.',
     }
   }, [activeSection])
 
@@ -65,6 +78,8 @@ function App() {
         <ResumeWorkspace />
       ) : activeSection === 'Jobs' ? (
         <JobsWorkspace />
+      ) : activeSection === 'Roadmap' ? (
+        <RoadmapWorkspace />
       ) : (
         <section className="rounded-[var(--radius-lg)] border border-[var(--cl-border)] bg-[var(--cl-surface)] p-8 shadow-[var(--shadow-soft)]">
           <p className="text-sm font-medium uppercase tracking-[0.22em] text-[var(--cl-accent)]">

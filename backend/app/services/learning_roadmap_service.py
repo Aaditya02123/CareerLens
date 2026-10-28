@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session
 
 from app.models.learning_roadmap import (
     JobLearningRoadmapResponse,
-    LearningRoadmapItem,
 )
 from app.repositories.learning_roadmap_repository import (
     LearningRoadmapRepository,
@@ -13,15 +12,16 @@ from app.services.skill_gap_service import get_skill_gap
 def _response_from_persisted_roadmap(
     roadmap,
 ) -> JobLearningRoadmapResponse:
-    """Convert persisted roadmap items to the existing API response."""
+    """Convert persisted roadmap items to the API response."""
     response_items = [
-        LearningRoadmapItem(
-            skill=item.skill,
-            status=item.skill_gap_status,
-            priority=item.priority,
-            reason=item.reason,
-            progress_status=item.progress_status,
-        )
+        {
+            "id": item.id,
+            "skill": item.skill,
+            "status": item.skill_gap_status,
+            "priority": item.priority,
+            "reason": item.reason,
+            "progress_status": item.progress_status,
+        }
         for item in roadmap.items
     ]
 
@@ -61,31 +61,29 @@ def build_learning_roadmap(
         session=session,
     )
 
-    roadmap_items: list[LearningRoadmapItem] = []
+    roadmap_items = []
 
     for item in skill_gap.partial:
         roadmap_items.append(
-            LearningRoadmapItem(
-                skill=item.skill,
-                status="partial",
-                priority="medium",
-                reason=(
+            {
+                "skill": item.skill,
+                "status": "partial",
+                "priority": "medium",
+                "reason": (
                     "Required skill has partial supporting evidence "
                     "in the resume."
                 ),
-                progress_status="not_started",
-            )
+            }
         )
 
     for item in skill_gap.missing:
         roadmap_items.append(
-            LearningRoadmapItem(
-                skill=item.skill,
-                status="missing",
-                priority="high",
-                reason="Required skill is missing from the resume.",
-                progress_status="not_started",
-            )
+            {
+                "skill": item.skill,
+                "status": "missing",
+                "priority": "high",
+                "reason": "Required skill is missing from the resume.",
+            }
         )
 
     persisted_roadmap = roadmap_repository.create(
@@ -96,15 +94,12 @@ def build_learning_roadmap(
     for item in roadmap_items:
         roadmap_repository.add_item(
             roadmap=persisted_roadmap,
-            skill=item.skill,
-            skill_gap_status=item.status,
-            priority=item.priority,
-            reason=item.reason,
+            skill=item["skill"],
+            skill_gap_status=item["status"],
+            priority=item["priority"],
+            reason=item["reason"],
         )
 
-    return JobLearningRoadmapResponse(
-        resume_id=skill_gap.resume_id,
-        job_id=skill_gap.job_id,
-        total_items=len(roadmap_items),
-        roadmap=roadmap_items,
+    return _response_from_persisted_roadmap(
+        persisted_roadmap,
     )
