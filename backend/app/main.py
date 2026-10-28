@@ -25,6 +25,9 @@ from app.api.job_recommendation import (
     router as job_recommendation_router,
 )
 from app.api.jobs import router as jobs_router
+from app.api.learning_resources import (
+    router as learning_resources_router,
+)
 from app.api.learning_roadmap import router as learning_roadmap_router
 from app.api.match_explaination import (
     router as match_explanation_router,
@@ -66,6 +69,7 @@ app.include_router(match_explanation_router)
 app.include_router(job_recommendation_router)
 app.include_router(learning_roadmap_router)
 app.include_router(skill_gap_router)
+app.include_router(learning_resources_router)
 app.include_router(applications_router)
 app.include_router(interview_preparation_router)
 app.include_router(interview_sessions_router)
