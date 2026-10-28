@@ -26,6 +26,25 @@ const ROADMAP_FILTERS = [
   { value: 'completed', label: 'Completed' },
 ]
 
+const SORT_OPTIONS = [
+  { value: 'default', label: 'Default order' },
+  { value: 'skill_asc', label: 'Skill name A–Z' },
+  { value: 'priority', label: 'Priority' },
+  { value: 'progress', label: 'Progress status' },
+]
+
+const PRIORITY_ORDER = {
+  high: 0,
+  medium: 1,
+  low: 2,
+}
+
+const PROGRESS_ORDER = {
+  not_started: 0,
+  in_progress: 1,
+  completed: 2,
+}
+
 function sortResumesNewestFirst(resumes) {
   return [...resumes].sort((first, second) => {
     const firstTime = new Date(first.created_at || 0).getTime()
@@ -53,11 +72,11 @@ function getProgressLabel(progressStatus) {
   )
 }
 
-function getFilterLabel(filter) {
+function getFilterLabel(filterValue) {
   return (
     ROADMAP_FILTERS.find(
-      (option) => option.value === filter,
-    )?.label || 'All'
+      (filter) => filter.value === filterValue,
+    )?.label || 'selected'
   )
 }
 
@@ -256,6 +275,64 @@ function RoadmapProgressFilters({
   )
 }
 
+function RoadmapSearchAndSort({
+  searchQuery,
+  sortOption,
+  onSearchChange,
+  onSortChange,
+}) {
+  return (
+    <div className="mb-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+      <div>
+        <label
+          htmlFor="roadmap-search"
+          className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35"
+        >
+          Search skills
+        </label>
+
+        <input
+          id="roadmap-search"
+          type="search"
+          value={searchQuery}
+          onChange={(event) =>
+            onSearchChange(event.target.value)
+          }
+          placeholder="Search by skill name"
+          className="mt-2 w-full rounded-lg border border-white/10 bg-[#0b0b0b] px-3 py-2.5 text-sm text-white/75 outline-none placeholder:text-white/25 focus:border-[#d6b36a]/60"
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor="roadmap-sort"
+          className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35"
+        >
+          Sort roadmap
+        </label>
+
+        <select
+          id="roadmap-sort"
+          value={sortOption}
+          onChange={(event) =>
+            onSortChange(event.target.value)
+          }
+          className="mt-2 w-full rounded-lg border border-white/10 bg-[#0b0b0b] px-3 py-2.5 text-sm text-white/75 outline-none focus:border-[#d6b36a]/60"
+        >
+          {SORT_OPTIONS.map((option) => (
+            <option
+              key={option.value}
+              value={option.value}
+            >
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  )
+}
+
 function RoadmapItem({
   item,
   isUpdating,
@@ -272,7 +349,7 @@ function RoadmapItem({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="break-words text-base font-medium text-white/90">
-              {item.skill}
+              {item.skill || 'Unnamed skill'}
             </h3>
 
             <span
@@ -281,16 +358,16 @@ function RoadmapItem({
                 getStatusStyles(item.status),
               ].join(' ')}
             >
-              {item.status}
+              {item.status || 'unknown'}
             </span>
 
             <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.13em] text-white/45">
-              {item.priority} priority
+              {item.priority || 'unknown'} priority
             </span>
           </div>
 
           <p className="mt-3 text-sm leading-6 text-white/50">
-            {item.reason}
+            {item.reason || 'No reason was provided.'}
           </p>
         </div>
 
@@ -325,7 +402,10 @@ function RoadmapItem({
             )}
 
             {PROGRESS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option
+                key={option.value}
+                value={option.value}
+              >
                 {option.label}
               </option>
             ))}
@@ -367,6 +447,8 @@ export default function RoadmapWorkspace() {
   const [roadmapRetryKey, setRoadmapRetryKey] = useState(0)
 
   const [selectedFilter, setSelectedFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortOption, setSortOption] = useState('default')
   const [updatingItems, setUpdatingItems] = useState({})
   const [progressErrors, setProgressErrors] = useState({})
 
@@ -398,16 +480,96 @@ export default function RoadmapWorkspace() {
     [roadmapItems],
   )
 
-  const filteredRoadmapItems = useMemo(() => {
-    if (selectedFilter === 'all') {
-      return roadmapItems
+  const filteredAndSortedRoadmapItems = useMemo(() => {
+    const normalizedQuery = searchQuery
+      .trim()
+      .toLowerCase()
+
+    const matchingItems = roadmapItems.filter((item) => {
+      const matchesProgressFilter =
+        selectedFilter === 'all' ||
+        item?.progress_status === selectedFilter
+
+      const skillName = String(
+        item?.skill || '',
+      ).toLowerCase()
+
+      const matchesSearch =
+        !normalizedQuery ||
+        skillName.includes(normalizedQuery)
+
+      return matchesProgressFilter && matchesSearch
+    })
+
+    if (sortOption === 'default') {
+      return matchingItems
     }
 
-    return roadmapItems.filter(
-      (item) =>
-        item?.progress_status === selectedFilter,
+    const indexedItems = matchingItems.map(
+      (item, index) => ({
+        item,
+        index,
+      }),
     )
-  }, [roadmapItems, selectedFilter])
+
+    indexedItems.sort((first, second) => {
+      if (sortOption === 'skill_asc') {
+        const firstSkill = String(
+          first.item?.skill || '',
+        ).toLowerCase()
+        const secondSkill = String(
+          second.item?.skill || '',
+        ).toLowerCase()
+
+        if (firstSkill !== secondSkill) {
+          if (!firstSkill) {
+            return 1
+          }
+
+          if (!secondSkill) {
+            return -1
+          }
+
+          return firstSkill.localeCompare(secondSkill)
+        }
+      }
+
+      if (sortOption === 'priority') {
+        const firstPriority =
+          PRIORITY_ORDER[first.item?.priority] ?? 99
+        const secondPriority =
+          PRIORITY_ORDER[second.item?.priority] ?? 99
+
+        if (firstPriority !== secondPriority) {
+          return firstPriority - secondPriority
+        }
+      }
+
+      if (sortOption === 'progress') {
+        const firstProgress =
+          PROGRESS_ORDER[
+            first.item?.progress_status
+          ] ?? 99
+        const secondProgress =
+          PROGRESS_ORDER[
+            second.item?.progress_status
+          ] ?? 99
+
+        if (firstProgress !== secondProgress) {
+          return firstProgress - secondProgress
+        }
+      }
+
+      return first.index - second.index
+    })
+
+    return indexedItems.map(({ item }) => item)
+  }, [
+    roadmapItems,
+    searchQuery,
+    selectedFilter,
+    sortOption,
+  ])
 
   const invalidateRoadmap = useCallback(() => {
     roadmapRequestIdRef.current += 1
@@ -485,6 +647,8 @@ export default function RoadmapWorkspace() {
     setRoadmap(null)
     setRoadmapError('')
     setSelectedFilter('all')
+    setSearchQuery('')
+    setSortOption('default')
     setUpdatingItems({})
     setProgressErrors({})
 
@@ -523,6 +687,8 @@ export default function RoadmapWorkspace() {
   function handleJobChange(event) {
     invalidateRoadmap()
     setSelectedFilter('all')
+    setSearchQuery('')
+    setSortOption('default')
     setSelectedJobId(event.target.value)
   }
 
@@ -542,8 +708,7 @@ export default function RoadmapWorkspace() {
     const isCurrentProgressRequest = () =>
       progressRequestIdsRef.current.get(itemId) ===
         nextRequestId &&
-      roadmapRequestIdRef.current ===
-        roadmapRequestIdAtRequest
+      roadmapRequestIdRef.current === roadmapRequestIdAtRequest
 
     setUpdatingItems((current) => ({
       ...current,
@@ -654,8 +819,8 @@ export default function RoadmapWorkspace() {
                 </div>
               ) : !hasResume ? (
                 <p className="mt-3 text-sm leading-6 text-white/45">
-                  Upload a resume before creating a personalized
-                  roadmap.
+                  Upload a resume before creating a
+                  personalized roadmap.
                 </p>
               ) : (
                 <p className="mt-3 truncate text-sm text-white/75">
@@ -817,6 +982,13 @@ export default function RoadmapWorkspace() {
                   onFilterChange={setSelectedFilter}
                 />
 
+                <RoadmapSearchAndSort
+                  searchQuery={searchQuery}
+                  sortOption={sortOption}
+                  onSearchChange={setSearchQuery}
+                  onSortChange={setSortOption}
+                />
+
                 {roadmapItems.length === 0 ? (
                   <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.035] p-6">
                     <p className="text-sm font-medium text-emerald-100/80">
@@ -829,43 +1001,54 @@ export default function RoadmapWorkspace() {
                       your target changes.
                     </p>
                   </div>
-                ) : filteredRoadmapItems.length === 0 ? (
+                ) : filteredAndSortedRoadmapItems.length === 0 ? (
                   <div className="rounded-2xl border border-white/8 bg-[#111111] p-6">
                     <p className="text-sm font-medium text-white/75">
-                      No skills match the "{getFilterLabel(selectedFilter)}" filter.
-                      match this filter.
+                      No roadmap items match the current search and filters.
                     </p>
 
                     <p className="mt-2 text-sm leading-6 text-white/40">
-                      Choose another progress filter to view
-                      more roadmap items.
+                      Try another skill name or reset the active
+                      filter and search.
                     </p>
 
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFilter('all')}
-                      className="mt-4 rounded-lg border border-[#d6b36a]/25 px-3 py-2 text-xs font-medium text-[#e5c57c]/85 transition hover:bg-[#d6b36a]/10"
-                    >
-                      Show all skills
-                    </button>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="rounded-lg border border-[#d6b36a]/25 px-3 py-2 text-xs font-medium text-[#e5c57c]/85 transition hover:bg-[#d6b36a]/10"
+                      >
+                        Clear search
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFilter('all')}
+                        className="rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-white/60 transition hover:border-white/20 hover:text-white/85"
+                      >
+                        Show all skills
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredRoadmapItems.map((item) => (
-                      <RoadmapItem
-                        key={item.id}
-                        item={item}
-                        isUpdating={Boolean(
-                          updatingItems[item.id],
-                        )}
-                        updateError={
-                          progressErrors[item.id] || ''
-                        }
-                        onProgressChange={
-                          handleProgressChange
-                        }
-                      />
-                    ))}
+                    {filteredAndSortedRoadmapItems.map(
+                      (item) => (
+                        <RoadmapItem
+                          key={item.id}
+                          item={item}
+                          isUpdating={Boolean(
+                            updatingItems[item.id],
+                          )}
+                          updateError={
+                            progressErrors[item.id] || ''
+                          }
+                          onProgressChange={
+                            handleProgressChange
+                          }
+                        />
+                      ),
+                    )}
                   </div>
                 )}
               </>
