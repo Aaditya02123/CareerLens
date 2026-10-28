@@ -19,6 +19,13 @@ const PROGRESS_OPTIONS = [
   { value: 'completed', label: 'Completed' },
 ]
 
+const ROADMAP_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'not_started', label: 'Not started' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'completed', label: 'Completed' },
+]
+
 function sortResumesNewestFirst(resumes) {
   return [...resumes].sort((first, second) => {
     const firstTime = new Date(first.created_at || 0).getTime()
@@ -32,11 +39,25 @@ function sortResumesNewestFirst(resumes) {
   })
 }
 
+function isKnownProgressStatus(progressStatus) {
+  return PROGRESS_OPTIONS.some(
+    (option) => option.value === progressStatus,
+  )
+}
+
 function getProgressLabel(progressStatus) {
   return (
     PROGRESS_OPTIONS.find(
       (option) => option.value === progressStatus,
-    )?.label || progressStatus
+    )?.label || 'Status unavailable'
+  )
+}
+
+function getFilterLabel(filter) {
+  return (
+    ROADMAP_FILTERS.find(
+      (option) => option.value === filter,
+    )?.label || 'All'
   )
 }
 
@@ -75,6 +96,23 @@ function getProgressSummary(items) {
     inProgress,
     notStarted,
     completionPercentage,
+  }
+}
+
+function getProgressFilterCounts(items) {
+  const safeItems = Array.isArray(items) ? items : []
+
+  return {
+    all: safeItems.length,
+    not_started: safeItems.filter(
+      (item) => item?.progress_status === 'not_started',
+    ).length,
+    in_progress: safeItems.filter(
+      (item) => item?.progress_status === 'in_progress',
+    ).length,
+    completed: safeItems.filter(
+      (item) => item?.progress_status === 'completed',
+    ).length,
   }
 }
 
@@ -171,12 +209,63 @@ function RoadmapProgressSummary({ summary }) {
   )
 }
 
+function RoadmapProgressFilters({
+  selectedFilter,
+  filterCounts,
+  onFilterChange,
+}) {
+  return (
+    <div
+      className="mb-5 flex flex-wrap gap-2"
+      role="group"
+      aria-label="Filter roadmap items by progress"
+    >
+      {ROADMAP_FILTERS.map((filter) => {
+        const isSelected =
+          selectedFilter === filter.value
+
+        return (
+          <button
+            key={filter.value}
+            type="button"
+            aria-pressed={isSelected}
+            onClick={() =>
+              onFilterChange(filter.value)
+            }
+            className={[
+              'rounded-full border px-3 py-2 text-xs font-medium transition',
+              isSelected
+                ? 'border-[#d6b36a]/50 bg-[#d6b36a]/12 text-[#f0d18b]'
+                : 'border-white/10 bg-white/[0.02] text-white/50 hover:border-white/20 hover:text-white/80',
+            ].join(' ')}
+          >
+            {filter.label}
+            <span
+              className={
+                isSelected
+                  ? 'ml-2 text-[#f0d18b]/80'
+                  : 'ml-2 text-white/30'
+              }
+            >
+              {filterCounts[filter.value]}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function RoadmapItem({
   item,
   isUpdating,
   updateError,
   onProgressChange,
 }) {
+  const hasKnownStatus = isKnownProgressStatus(
+    item.progress_status,
+  )
+
   return (
     <article className="rounded-2xl border border-white/8 bg-[#111111] p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -215,13 +304,26 @@ function RoadmapItem({
 
           <select
             id={`roadmap-progress-${item.id}`}
-            value={item.progress_status}
+            value={
+              hasKnownStatus
+                ? item.progress_status
+                : ''
+            }
             onChange={(event) =>
-              onProgressChange(item.id, event.target.value)
+              onProgressChange(
+                item.id,
+                event.target.value,
+              )
             }
             disabled={isUpdating}
             className="mt-2 min-w-[150px] rounded-lg border border-white/10 bg-[#0b0b0b] px-3 py-2 text-xs text-white/75 outline-none transition focus:border-[#d6b36a]/60 disabled:cursor-not-allowed disabled:opacity-50"
           >
+            {!hasKnownStatus && (
+              <option value="" disabled>
+                Status unavailable
+              </option>
+            )}
+
             {PROGRESS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -264,6 +366,7 @@ export default function RoadmapWorkspace() {
   const [roadmapError, setRoadmapError] = useState('')
   const [roadmapRetryKey, setRoadmapRetryKey] = useState(0)
 
+  const [selectedFilter, setSelectedFilter] = useState('all')
   const [updatingItems, setUpdatingItems] = useState({})
   const [progressErrors, setProgressErrors] = useState({})
 
@@ -275,8 +378,9 @@ export default function RoadmapWorkspace() {
 
   const selectedJob = useMemo(
     () =>
-      jobs.find((job) => String(job.id) === selectedJobId) ||
-      null,
+      jobs.find(
+        (job) => String(job.id) === selectedJobId,
+      ) || null,
     [jobs, selectedJobId],
   )
 
@@ -288,6 +392,22 @@ export default function RoadmapWorkspace() {
     () => getProgressSummary(roadmapItems),
     [roadmapItems],
   )
+
+  const progressFilterCounts = useMemo(
+    () => getProgressFilterCounts(roadmapItems),
+    [roadmapItems],
+  )
+
+  const filteredRoadmapItems = useMemo(() => {
+    if (selectedFilter === 'all') {
+      return roadmapItems
+    }
+
+    return roadmapItems.filter(
+      (item) =>
+        item?.progress_status === selectedFilter,
+    )
+  }, [roadmapItems, selectedFilter])
 
   const invalidateRoadmap = useCallback(() => {
     roadmapRequestIdRef.current += 1
@@ -364,6 +484,7 @@ export default function RoadmapWorkspace() {
 
     setRoadmap(null)
     setRoadmapError('')
+    setSelectedFilter('all')
     setUpdatingItems({})
     setProgressErrors({})
 
@@ -401,6 +522,7 @@ export default function RoadmapWorkspace() {
 
   function handleJobChange(event) {
     invalidateRoadmap()
+    setSelectedFilter('all')
     setSelectedJobId(event.target.value)
   }
 
@@ -420,7 +542,8 @@ export default function RoadmapWorkspace() {
     const isCurrentProgressRequest = () =>
       progressRequestIdsRef.current.get(itemId) ===
         nextRequestId &&
-      roadmapRequestIdRef.current === roadmapRequestIdAtRequest
+      roadmapRequestIdRef.current ===
+        roadmapRequestIdAtRequest
 
     setUpdatingItems((current) => ({
       ...current,
@@ -453,7 +576,8 @@ export default function RoadmapWorkspace() {
             String(item.id) === String(updatedItem.id)
               ? {
                   ...item,
-                  progress_status: updatedItem.progress_status,
+                  progress_status:
+                    updatedItem.progress_status,
                 }
               : item,
           ),
@@ -530,8 +654,8 @@ export default function RoadmapWorkspace() {
                 </div>
               ) : !hasResume ? (
                 <p className="mt-3 text-sm leading-6 text-white/45">
-                  Upload a resume before creating a
-                  personalized roadmap.
+                  Upload a resume before creating a personalized
+                  roadmap.
                 </p>
               ) : (
                 <p className="mt-3 truncate text-sm text-white/75">
@@ -687,6 +811,12 @@ export default function RoadmapWorkspace() {
                   summary={progressSummary}
                 />
 
+                <RoadmapProgressFilters
+                  selectedFilter={selectedFilter}
+                  filterCounts={progressFilterCounts}
+                  onFilterChange={setSelectedFilter}
+                />
+
                 {roadmapItems.length === 0 ? (
                   <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.035] p-6">
                     <p className="text-sm font-medium text-emerald-100/80">
@@ -699,9 +829,29 @@ export default function RoadmapWorkspace() {
                       your target changes.
                     </p>
                   </div>
+                ) : filteredRoadmapItems.length === 0 ? (
+                  <div className="rounded-2xl border border-white/8 bg-[#111111] p-6">
+                    <p className="text-sm font-medium text-white/75">
+                      No skills match the "{getFilterLabel(selectedFilter)}" filter.
+                      match this filter.
+                    </p>
+
+                    <p className="mt-2 text-sm leading-6 text-white/40">
+                      Choose another progress filter to view
+                      more roadmap items.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedFilter('all')}
+                      className="mt-4 rounded-lg border border-[#d6b36a]/25 px-3 py-2 text-xs font-medium text-[#e5c57c]/85 transition hover:bg-[#d6b36a]/10"
+                    >
+                      Show all skills
+                    </button>
+                  </div>
                 ) : (
                   <div className="space-y-3">
-                    {roadmapItems.map((item) => (
+                    {filteredRoadmapItems.map((item) => (
                       <RoadmapItem
                         key={item.id}
                         item={item}
