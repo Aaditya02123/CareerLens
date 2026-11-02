@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://127.0.0.1:8080'
+const API_BASE_URL = 'http://127.0.0.1:8000'
 
 const ALLOWED_PROGRESS_STATUSES = new Set([
   'not_started',
@@ -78,5 +78,24 @@ export async function updateLearningRoadmapProgress(
   return readJsonResponse(
     response,
     'CareerLens could not update learning roadmap progress.',
+  )
+}
+
+export async function fetchLearningResources(skill) {
+  if (!skill || !String(skill).trim()) {
+    throw new Error(
+      'A skill is required to load learning resources.',
+    )
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/learning-resources/${encodeURIComponent(
+      skill,
+    )}`,
+  )
+
+  return readJsonResponse(
+    response,
+    'CareerLens could not load learning resources.',
   )
 }
