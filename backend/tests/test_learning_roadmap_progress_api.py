@@ -173,6 +173,7 @@ def test_roadmap_get_includes_persisted_progress_status(
         total_items=1,
         roadmap=[
             LearningRoadmapItem(
+                id = 1,
                 skill="SQL",
                 status="missing",
                 priority="high",
@@ -206,6 +207,68 @@ def test_roadmap_get_includes_persisted_progress_status(
                 "priority": "high",
                 "reason": "SQL is missing from the resume.",
                 "progress_status": "in_progress",
+            },
+        ],
+    }
+
+    mocked_builder.assert_called_once()
+
+def test_roadmap_get_includes_persisted_progress_status(
+    monkeypatch,
+    client,
+):
+    expected = JobLearningRoadmapResponse(
+        resume_id=5,
+        job_id=1,
+        total_items=1,
+        total_minimum_hours=0,
+        total_maximum_hours=0,
+        effort_available_items=0,
+        effort_unavailable_items=1,
+        roadmap=[
+            LearningRoadmapItem(
+                id=1,
+                skill="SQL",
+                status="missing",
+                priority="high",
+                reason="SQL is missing from the resume.",
+                progress_status="in_progress",
+            ),
+        ],
+    )
+
+    mocked_builder = Mock(return_value=expected)
+
+    monkeypatch.setattr(
+        api_module,
+        "build_learning_roadmap",
+        mocked_builder,
+    )
+
+    response = client.get(
+        "/roadmaps/resumes/5/jobs/1",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "resume_id": 5,
+        "job_id": 1,
+        "total_items": 1,
+        "total_minimum_hours": 0,
+        "total_maximum_hours": 0,
+        "effort_available_items": 0,
+        "effort_unavailable_items": 1,
+        "roadmap": [
+            {
+                "id": 1,
+                "skill": "SQL",
+                "status": "missing",
+                "priority": "high",
+                "reason": "SQL is missing from the resume.",
+                "progress_status": "in_progress",
+                "minimum_hours": None,
+                "maximum_hours": None,
+                "effort_available": False,
             },
         ],
     }

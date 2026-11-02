@@ -6,6 +6,9 @@ from app.models.learning_roadmap import (
 from app.repositories.learning_roadmap_repository import (
     LearningRoadmapRepository,
 )
+from app.services.learning_effort_service import (
+    estimate_learning_effort,
+)
 from app.services.skill_gap_service import get_skill_gap
 
 
@@ -13,22 +16,56 @@ def _response_from_persisted_roadmap(
     roadmap,
 ) -> JobLearningRoadmapResponse:
     """Convert persisted roadmap items to the API response."""
-    response_items = [
-        {
-            "id": item.id,
-            "skill": item.skill,
-            "status": item.skill_gap_status,
-            "priority": item.priority,
-            "reason": item.reason,
-            "progress_status": item.progress_status,
-        }
-        for item in roadmap.items
+    response_items = []
+
+    for item in roadmap.items:
+        effort = estimate_learning_effort(
+            skill=item.skill,
+            gap_status=item.skill_gap_status,
+        )
+
+        response_items.append(
+            {
+                "id": item.id,
+                "skill": item.skill,
+                "status": item.skill_gap_status,
+                "priority": item.priority,
+                "reason": item.reason,
+                "progress_status": item.progress_status,
+                "minimum_hours": effort.minimum_hours,
+                "maximum_hours": effort.maximum_hours,
+                "effort_available": effort.available,
+            }
+        )
+
+    available_efforts = [
+        item
+        for item in response_items
+        if item["effort_available"]
     ]
+
+    total_minimum_hours = sum(
+        item["minimum_hours"]
+        for item in available_efforts
+    )
+    total_maximum_hours = sum(
+        item["maximum_hours"]
+        for item in available_efforts
+    )
+
+    effort_available_items = len(available_efforts)
+    effort_unavailable_items = (
+        len(response_items) - effort_available_items
+    )
 
     return JobLearningRoadmapResponse(
         resume_id=roadmap.resume_id,
         job_id=roadmap.job_id,
         total_items=len(response_items),
+        total_minimum_hours=total_minimum_hours,
+        total_maximum_hours=total_maximum_hours,
+        effort_available_items=effort_available_items,
+        effort_unavailable_items=effort_unavailable_items,
         roadmap=response_items,
     )
 

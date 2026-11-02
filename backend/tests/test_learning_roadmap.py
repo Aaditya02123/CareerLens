@@ -631,3 +631,169 @@ def test_skill_gap_exception_propagates_unchanged(
             job_id=1,
             session=Mock(),
         )
+
+def test_persisted_roadmap_receives_effort_estimates(
+    monkeypatch,
+    fake_repository,
+):
+    persisted = make_persisted_roadmap(
+        [
+            make_persisted_item(
+                item_id=1,
+                skill="SQL",
+                status="missing",
+                priority="high",
+                reason="SQL is missing.",
+                progress_status="in_progress",
+            ),
+            make_persisted_item(
+                item_id=2,
+                skill="Docker",
+                status="partial",
+                priority="medium",
+                reason="Docker has partial evidence.",
+                progress_status="completed",
+            ),
+        ]
+    )
+    fake_repository.persisted_roadmap = persisted
+
+    result = build_learning_roadmap(
+        resume_id=5,
+        job_id=1,
+        session=Mock(),
+    )
+
+    assert result.total_minimum_hours == 13
+    assert result.total_maximum_hours == 22
+    assert result.effort_available_items == 2
+    assert result.effort_unavailable_items == 0
+
+    assert (
+        result.roadmap[0].minimum_hours,
+        result.roadmap[0].maximum_hours,
+        result.roadmap[0].effort_available,
+    ) == (10, 16, True)
+
+    assert (
+        result.roadmap[1].minimum_hours,
+        result.roadmap[1].maximum_hours,
+        result.roadmap[1].effort_available,
+    ) == (3, 6, True)
+
+    assert result.roadmap[0].progress_status == "in_progress"
+    assert result.roadmap[1].progress_status == "completed"
+
+
+def test_generated_roadmap_receives_effort_estimates(
+    monkeypatch,
+    fake_repository,
+):
+    skill_gap = make_skill_gap(
+        partial=[
+            make_skill(
+                "PostgreSQL",
+                "partial",
+                "medium",
+                "PostgreSQL evidence is partial.",
+            ),
+        ],
+        missing=[
+            make_skill(
+                "Docker",
+                "missing",
+                "high",
+                "Docker is missing.",
+            ),
+        ],
+    )
+
+    monkeypatch.setattr(
+        service_module,
+        "get_skill_gap",
+        Mock(return_value=skill_gap),
+    )
+
+    result = build_learning_roadmap(
+        resume_id=5,
+        job_id=1,
+        session=Mock(),
+    )
+
+    assert result.total_minimum_hours == 11
+    assert result.total_maximum_hours == 20
+    assert result.effort_available_items == 2
+    assert result.effort_unavailable_items == 0
+    assert [
+        (
+            item.minimum_hours,
+            item.maximum_hours,
+            item.effort_available,
+        )
+        for item in result.roadmap
+    ] == [
+        (3, 6, True),
+        (8, 14, True),
+    ]
+
+
+def test_unknown_skill_remains_in_roadmap_without_effort(
+    monkeypatch,
+    fake_repository,
+):
+    skill_gap = make_skill_gap(
+        missing=[
+            make_skill(
+                "Redis",
+                "missing",
+                "high",
+                "Redis is missing.",
+            ),
+        ],
+    )
+
+    monkeypatch.setattr(
+        service_module,
+        "get_skill_gap",
+        Mock(return_value=skill_gap),
+    )
+
+    result = build_learning_roadmap(
+        resume_id=5,
+        job_id=1,
+        session=Mock(),
+    )
+
+    assert len(result.roadmap) == 1
+    assert result.roadmap[0].skill == "Redis"
+    assert result.roadmap[0].effort_available is False
+    assert result.roadmap[0].minimum_hours is None
+    assert result.roadmap[0].maximum_hours is None
+    assert result.total_minimum_hours == 0
+    assert result.total_maximum_hours == 0
+    assert result.effort_available_items == 0
+    assert result.effort_unavailable_items == 1
+
+
+def test_empty_roadmap_has_zero_effort_totals(
+    monkeypatch,
+    fake_repository,
+):
+    monkeypatch.setattr(
+        service_module,
+        "get_skill_gap",
+        Mock(return_value=make_skill_gap()),
+    )
+
+    result = build_learning_roadmap(
+        resume_id=5,
+        job_id=1,
+        session=Mock(),
+    )
+
+    assert result.total_items == 0
+    assert result.roadmap == []
+    assert result.total_minimum_hours == 0
+    assert result.total_maximum_hours == 0
+    assert result.effort_available_items == 0
+    assert result.effort_unavailable_items == 0
