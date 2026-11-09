@@ -7,15 +7,21 @@ import {
 } from 'react'
 
 import { fetchJobs } from '../../services/api/jobs'
-import { fetchUserResumes } from '../../services/api/resumes'
+import {
+  CAREERLENS_DEV_USER_ID,
+  fetchUserResumes,
+} from '../../services/api/resumes'
 import {
   fetchLearningResources,
   fetchLearningRoadmap,
+  fetchRoadmapSchedule,
   updateLearningRoadmapProgress,
 } from '../../services/api/learningRoadmap'
 import FocusedLearningView from './FocusedLearningView'
+import LearningPreferencesPanel from './LearningPreferencesPanel'
 import LearningJourneyTimeline from './LearningJourneyTimeline'
 import RoadmapResourceSection from './RoadmapResourceSection'
+import RoadmapScheduleSummary from './RoadmapScheduleSummary'
 
 const PROGRESS_OPTIONS = [
   { value: 'not_started', label: 'Not started' },
@@ -704,6 +710,11 @@ export default function RoadmapWorkspace() {
   const [roadmapError, setRoadmapError] = useState('')
   const [roadmapRetryKey, setRoadmapRetryKey] = useState(0)
 
+  const [schedule, setSchedule] = useState(null)
+  const [scheduleLoading, setScheduleLoading] = useState(false)
+  const [scheduleError, setScheduleError] = useState('')
+  const [scheduleRetryKey, setScheduleRetryKey] = useState(0)
+
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOption, setSortOption] = useState('default')
@@ -717,6 +728,7 @@ export default function RoadmapWorkspace() {
   const [completionFeedback, setCompletionFeedback] = useState(null)
 
   const roadmapRequestIdRef = useRef(0)
+  const scheduleRequestIdRef = useRef(0)
   const progressRequestIdsRef = useRef(new Map())
   const resourceRequestIdsRef = useRef(new Map())
   const selectedJobIdRef = useRef('')
@@ -832,9 +844,13 @@ export default function RoadmapWorkspace() {
 
   const invalidateRoadmap = useCallback(() => {
     roadmapRequestIdRef.current += 1
+    scheduleRequestIdRef.current += 1
     setRoadmap(null)
     setRoadmapError('')
     setRoadmapLoading(false)
+    setSchedule(null)
+    setScheduleError('')
+    setScheduleLoading(false)
     setUpdatingItems({})
     setProgressErrors({})
     setExpandedResources({})
@@ -944,6 +960,39 @@ export default function RoadmapWorkspace() {
         }
       })
   }, [resume, selectedJob, roadmapRetryKey])
+
+  useEffect(() => {
+    const requestId = ++scheduleRequestIdRef.current
+
+    setSchedule(null)
+    setScheduleError('')
+
+    if (!resume?.id || !selectedJob?.id) {
+      setScheduleLoading(false)
+      return
+    }
+
+    setScheduleLoading(true)
+
+    fetchRoadmapSchedule(resume.id, selectedJob.id)
+      .then((response) => {
+        if (requestId !== scheduleRequestIdRef.current) return
+        setSchedule(response)
+      })
+      .catch((error) => {
+        if (requestId !== scheduleRequestIdRef.current) return
+
+        setScheduleError(
+          error?.message ||
+            'CareerLens could not load the roadmap schedule.',
+        )
+      })
+      .finally(() => {
+        if (requestId === scheduleRequestIdRef.current) {
+          setScheduleLoading(false)
+        }
+      })
+  }, [resume, selectedJob, scheduleRetryKey])
 
   useEffect(() => {
     if (focusedItemId && !focusedItem) {
@@ -1057,6 +1106,14 @@ export default function RoadmapWorkspace() {
     setRoadmapRetryKey((current) => current + 1)
   }
 
+  function handleRetrySchedule() {
+    setScheduleRetryKey((current) => current + 1)
+  }
+
+  function handlePreferencesSaved() {
+    setScheduleRetryKey((current) => current + 1)
+  }
+
   async function handleProgressChange(itemId, nextStatus) {
     const previousItem = roadmapItems.find(
       (item) => String(item.id) === String(itemId),
@@ -1121,6 +1178,8 @@ export default function RoadmapWorkspace() {
           ),
         }
       })
+
+      setScheduleRetryKey((current) => current + 1)
     } catch (error) {
       if (!isCurrentProgressRequest()) return
 
@@ -1251,6 +1310,11 @@ export default function RoadmapWorkspace() {
           </div>
         </section>
 
+        <LearningPreferencesPanel
+          userId={CAREERLENS_DEV_USER_ID}
+          onSaved={handlePreferencesSaved}
+        />
+
         {!resumeLoading && !hasResume && (
           <section className="mt-6 rounded-2xl border border-[#d6b36a]/15 bg-[#d6b36a]/[0.035] p-6">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
@@ -1305,6 +1369,13 @@ export default function RoadmapWorkspace() {
                 </span>
               )}
             </div>
+
+            <RoadmapScheduleSummary
+              schedule={schedule}
+              loading={scheduleLoading}
+              error={scheduleError}
+              onRetry={handleRetrySchedule}
+            />
 
             {roadmapLoading ? (
               <div

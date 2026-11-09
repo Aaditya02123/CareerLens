@@ -44,6 +44,27 @@ export async function fetchLearningRoadmap(resumeId, jobId) {
   )
 }
 
+export async function fetchRoadmapSchedule(resumeId, jobId) {
+  if (!resumeId) {
+    throw new Error('A resume ID is required for the roadmap schedule.')
+  }
+
+  if (!jobId) {
+    throw new Error('A job ID is required for the roadmap schedule.')
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/roadmaps/resumes/${encodeURIComponent(
+      resumeId,
+    )}/jobs/${encodeURIComponent(jobId)}/schedule`,
+  )
+
+  return readJsonResponse(
+    response,
+    'CareerLens could not load the roadmap schedule.',
+  )
+}
+
 export async function updateLearningRoadmapProgress(
   itemId,
   progressStatus,

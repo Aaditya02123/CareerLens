@@ -9,8 +9,13 @@ import {
 import {
   fetchLearningResources,
   fetchLearningRoadmap,
+  fetchRoadmapSchedule,
   updateLearningRoadmapProgress,
 } from '../services/api/learningRoadmap'
+import {
+  fetchLearningPreferences,
+  saveLearningPreferences,
+} from '../services/api/learningPreferences'
 import { fetchUserResumes } from '../services/api/resumes'
 
 vi.mock('../services/api/jobs', () => ({
@@ -20,10 +25,17 @@ vi.mock('../services/api/jobs', () => ({
 vi.mock('../services/api/learningRoadmap', () => ({
   fetchLearningResources: vi.fn(),
   fetchLearningRoadmap: vi.fn(),
+  fetchRoadmapSchedule: vi.fn(),
   updateLearningRoadmapProgress: vi.fn(),
 }))
 
+vi.mock('../services/api/learningPreferences', () => ({
+  fetchLearningPreferences: vi.fn(),
+  saveLearningPreferences: vi.fn(),
+}))
+
 vi.mock('../services/api/resumes', () => ({
+  CAREERLENS_DEV_USER_ID: 3,
   fetchUserResumes: vi.fn(),
 }))
 
@@ -104,6 +116,24 @@ function createRoadmap(items = [
   }
 }
 
+function createRoadmapSchedule(overrides = {}) {
+  return {
+    resume_id: 1,
+    job_id: 10,
+    configured: false,
+    weekly_hours: 10,
+    target_completion_date: null,
+    pace: 'balanced',
+    remaining_minimum_hours: 7,
+    remaining_maximum_hours: 14,
+    estimated_minimum_weeks: 1,
+    estimated_maximum_weeks: 2,
+    schedule_status: 'not_configured',
+    items: [],
+    ...overrides,
+  }
+}
+
 async function renderRoadmap(roadmap = createRoadmap()) {
   fetchUserResumes.mockResolvedValue([
     {
@@ -114,6 +144,23 @@ async function renderRoadmap(roadmap = createRoadmap()) {
   ])
   fetchJobs.mockResolvedValue(jobs)
   fetchLearningRoadmap.mockResolvedValue(roadmap)
+  fetchLearningPreferences.mockResolvedValue({
+    user_id: 3,
+    weekly_hours: 10,
+    target_completion_date: null,
+    pace: 'balanced',
+    preferred_resource_types: [],
+    is_saved: false,
+  })
+  fetchRoadmapSchedule.mockResolvedValue(createRoadmapSchedule())
+  saveLearningPreferences.mockResolvedValue({
+    user_id: 3,
+    weekly_hours: 10,
+    target_completion_date: null,
+    pace: 'balanced',
+    preferred_resource_types: [],
+    is_saved: true,
+  })
   fetchLearningResources.mockResolvedValue(resources)
   updateLearningRoadmapProgress.mockResolvedValue({
     id: 1,
@@ -355,5 +402,102 @@ describe('roadmap workflow', () => {
         name: 'Frontend Engineer',
       }),
     ).toBeInTheDocument()
+  })
+
+  it('loads the schedule for the selected resume and job', async () => {
+    await renderRoadmap()
+
+    expect(fetchRoadmapSchedule).toHaveBeenCalledWith(1, 10)
+    expect(
+      await screen.findByRole('heading', {
+        level: 3,
+        name: 'Your learning projection',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('refreshes the schedule after preferences are saved', async () => {
+    const user = await renderRoadmap()
+    const initialCallCount = fetchRoadmapSchedule.mock.calls.length
+
+    await user.click(
+      screen.getByRole('button', { name: 'Save preferences' }),
+    )
+
+    await waitFor(() => {
+      expect(fetchRoadmapSchedule.mock.calls.length).toBe(
+        initialCallCount + 1,
+      )
+    })
+  })
+
+  it('refreshes the schedule after a successful progress update', async () => {
+    const user = await renderRoadmap()
+    const initialCallCount = fetchRoadmapSchedule.mock.calls.length
+    updateLearningRoadmapProgress.mockResolvedValueOnce({
+      id: 1,
+      progress_status: 'in_progress',
+    })
+
+    await user.selectOptions(
+      screen.getAllByLabelText('Progress')[0],
+      'in_progress',
+    )
+
+    await waitFor(() => {
+      expect(fetchRoadmapSchedule.mock.calls.length).toBe(
+        initialCallCount + 1,
+      )
+    })
+  })
+
+  it('does not refresh the schedule after a failed progress update', async () => {
+    const user = await renderRoadmap()
+    const initialCallCount = fetchRoadmapSchedule.mock.calls.length
+    updateLearningRoadmapProgress.mockRejectedValueOnce(
+      new Error('Progress service unavailable'),
+    )
+
+    await user.selectOptions(
+      screen.getAllByLabelText('Progress')[0],
+      'in_progress',
+    )
+    await screen.findByText('Progress service unavailable')
+
+    expect(fetchRoadmapSchedule.mock.calls.length).toBe(initialCallCount)
+  })
+
+  it('ignores an older schedule response after switching jobs', async () => {
+    const requests = new Map()
+    fetchLearningRoadmap.mockResolvedValue(createRoadmap())
+    fetchRoadmapSchedule.mockImplementation((_resumeId, jobId) =>
+      new Promise((resolve) => {
+        requests.set(jobId, resolve)
+      }),
+    )
+
+    const user = userEvent.setup()
+    render(<RoadmapWorkspace />)
+    const jobSelect = await screen.findByLabelText('Target job')
+
+    await user.selectOptions(jobSelect, '10')
+    await waitFor(() => expect(requests.has(10)).toBe(true))
+    await user.selectOptions(jobSelect, '20')
+    await waitFor(() => expect(requests.has(20)).toBe(true))
+
+    requests.get(10)({
+      ...createRoadmapSchedule(),
+      job_id: 10,
+      schedule_status: 'at_risk',
+    })
+    await Promise.resolve()
+    expect(screen.queryByText('At risk')).not.toBeInTheDocument()
+
+    requests.get(20)({
+      ...createRoadmapSchedule(),
+      job_id: 20,
+      schedule_status: 'on_track',
+    })
+    expect(await screen.findByText('On track')).toBeInTheDocument()
   })
 })
