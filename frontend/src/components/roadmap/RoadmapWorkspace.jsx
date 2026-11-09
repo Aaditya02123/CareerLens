@@ -522,7 +522,10 @@ function RoadmapItem({
   )
 
   return (
-    <article className="rounded-2xl border border-white/8 bg-[#111111] p-5">
+    <article
+      className="rounded-2xl border border-white/8 bg-[#111111] p-5"
+      data-testid={`roadmap-item-${item.id}`}
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -1526,7 +1529,10 @@ export default function RoadmapWorkspace() {
                     </div>
                   </div>
                     ) : (
-                  <div className="space-y-3">
+                  <div
+                    className="space-y-3"
+                    data-testid="roadmap-items"
+                  >
                     {filteredAndSortedRoadmapItems.map((item) => {
                       const resourceSkill = normalizeResourceSkill(
                         item.skill,

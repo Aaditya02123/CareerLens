@@ -43,6 +43,7 @@ export default function LearningJourneyTimeline({ items }) {
     <section
       className="mb-5 rounded-2xl border border-white/8 bg-[#111111] p-5"
       aria-labelledby="learning-journey-heading"
+      data-testid="learning-journey-timeline"
     >
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">

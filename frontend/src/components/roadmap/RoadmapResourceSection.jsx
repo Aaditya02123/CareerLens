@@ -22,6 +22,11 @@ export default function RoadmapResourceSection({
         type="button"
         aria-expanded={isExpanded}
         aria-controls={resourceSectionId}
+        aria-label={
+          isExpanded
+            ? 'Hide learning resources'
+            : 'Explore learning resources'
+        }
         onClick={onToggle}
         className="flex w-full items-center justify-between gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d6b36a]/70"
       >
