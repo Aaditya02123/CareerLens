@@ -82,6 +82,12 @@ function normalizeResourceSkill(skill) {
     .join(' ')
 }
 
+function getResourceCacheKey(userId, skill) {
+  const normalizedSkill = normalizeResourceSkill(skill)
+
+  return `${String(userId)}:${normalizedSkill}`
+}
+
 function isKnownProgressStatus(progressStatus) {
   return PROGRESS_OPTIONS.some(
     (option) => option.value === progressStatus,
@@ -1003,53 +1009,60 @@ export default function RoadmapWorkspace() {
   const loadResources = useCallback(
     async (skill, force = false) => {
       const normalizedSkill = normalizeResourceSkill(skill)
+      const resourceCacheKey = getResourceCacheKey(
+        CAREERLENS_DEV_USER_ID,
+        skill,
+      )
 
       if (!normalizedSkill) return
 
       const roadmapRequestIdAtRequest =
         roadmapRequestIdRef.current
       const nextRequestId =
-        (resourceRequestIdsRef.current.get(normalizedSkill) || 0) + 1
+        (resourceRequestIdsRef.current.get(resourceCacheKey) || 0) + 1
 
       if (
         !force &&
-        (resourceCache[normalizedSkill] ||
-          resourceStates[normalizedSkill]?.loading)
+        (resourceCache[resourceCacheKey] ||
+          resourceStates[resourceCacheKey]?.loading)
       ) {
         return
       }
 
       resourceRequestIdsRef.current.set(
-        normalizedSkill,
+        resourceCacheKey,
         nextRequestId,
       )
 
       const isCurrentResourceRequest = () =>
-        resourceRequestIdsRef.current.get(normalizedSkill) ===
+        resourceRequestIdsRef.current.get(resourceCacheKey) ===
           nextRequestId &&
         roadmapRequestIdRef.current === roadmapRequestIdAtRequest
 
       setResourceStates((current) => ({
         ...current,
-        [normalizedSkill]: {
+        [resourceCacheKey]: {
           loading: true,
           error: '',
         },
       }))
 
       try {
-        const response = await fetchLearningResources(skill)
+        const response = await fetchLearningResources(
+          skill,
+          CAREERLENS_DEV_USER_ID,
+        )
 
         if (!isCurrentResourceRequest()) return
 
         setResourceCache((current) => ({
           ...current,
-          [normalizedSkill]: response,
+          [resourceCacheKey]: response,
         }))
 
         setResourceStates((current) => ({
           ...current,
-          [normalizedSkill]: {
+          [resourceCacheKey]: {
             loading: false,
             error: '',
           },
@@ -1059,7 +1072,7 @@ export default function RoadmapWorkspace() {
 
         setResourceStates((current) => ({
           ...current,
-          [normalizedSkill]: {
+          [resourceCacheKey]: {
             loading: false,
             error:
               error?.message ||
@@ -1074,6 +1087,10 @@ export default function RoadmapWorkspace() {
   function handleToggleResources(item, resourceKey = String(item.id)) {
     const isOpening = !expandedResources[resourceKey]
     const normalizedSkill = normalizeResourceSkill(item.skill)
+    const resourceCacheKey = getResourceCacheKey(
+      CAREERLENS_DEV_USER_ID,
+      item.skill,
+    )
 
     setExpandedResources((current) => ({
       ...current,
@@ -1083,8 +1100,8 @@ export default function RoadmapWorkspace() {
     if (
       isOpening &&
       normalizedSkill &&
-      !resourceCache[normalizedSkill] &&
-      !resourceStates[normalizedSkill]?.loading
+      !resourceCache[resourceCacheKey] &&
+      !resourceStates[resourceCacheKey]?.loading
     ) {
       void loadResources(item.skill)
     }
@@ -1112,6 +1129,40 @@ export default function RoadmapWorkspace() {
 
   function handlePreferencesSaved() {
     setScheduleRetryKey((current) => current + 1)
+
+    const expandedSkills = new Set()
+
+    roadmapItems.forEach((item) => {
+      if (expandedResources[String(item.id)]) {
+        expandedSkills.add(item.skill)
+      }
+    })
+
+    if (
+      focusedItem &&
+      expandedResources[`focused-${focusedItem.id}`]
+    ) {
+      expandedSkills.add(focusedItem.skill)
+    }
+
+    if (
+      recommendedItem &&
+      expandedResources[`recommended-${recommendedItem.id}`]
+    ) {
+      expandedSkills.add(recommendedItem.skill)
+    }
+
+    resourceRequestIdsRef.current = new Map(
+      [...resourceRequestIdsRef.current.entries()].map(
+        ([cacheKey, requestId]) => [cacheKey, requestId + 1],
+      ),
+    )
+    setResourceCache({})
+    setResourceStates({})
+
+    expandedSkills.forEach((skill) => {
+      void loadResources(skill, true)
+    })
   }
 
   async function handleProgressChange(itemId, nextStatus) {
@@ -1436,17 +1487,26 @@ export default function RoadmapWorkspace() {
                     onProgressChange={handleProgressChange}
                     resourceData={
                       resourceCache[
-                        normalizeResourceSkill(focusedItem.skill)
+                        getResourceCacheKey(
+                          CAREERLENS_DEV_USER_ID,
+                          focusedItem.skill,
+                        )
                       ] || null
                     }
                     resourceLoading={Boolean(
                       resourceStates[
-                        normalizeResourceSkill(focusedItem.skill)
+                        getResourceCacheKey(
+                          CAREERLENS_DEV_USER_ID,
+                          focusedItem.skill,
+                        )
                       ]?.loading,
                     )}
                     resourceError={
                       resourceStates[
-                        normalizeResourceSkill(focusedItem.skill)
+                        getResourceCacheKey(
+                          CAREERLENS_DEV_USER_ID,
+                          focusedItem.skill,
+                        )
                       ]?.error || ''
                     }
                     isResourcesExpanded={Boolean(
@@ -1487,17 +1547,26 @@ export default function RoadmapWorkspace() {
                     resourceKey={`recommended-${recommendedItem.id}`}
                     resourceData={
                       resourceCache[
-                        normalizeResourceSkill(recommendedItem.skill)
+                        getResourceCacheKey(
+                          CAREERLENS_DEV_USER_ID,
+                          recommendedItem.skill,
+                        )
                       ] || null
                     }
                     resourceLoading={Boolean(
                       resourceStates[
-                        normalizeResourceSkill(recommendedItem.skill)
+                        getResourceCacheKey(
+                          CAREERLENS_DEV_USER_ID,
+                          recommendedItem.skill,
+                        )
                       ]?.loading,
                     )}
                     resourceError={
                       resourceStates[
-                        normalizeResourceSkill(recommendedItem.skill)
+                        getResourceCacheKey(
+                          CAREERLENS_DEV_USER_ID,
+                          recommendedItem.skill,
+                        )
                       ]?.error || ''
                     }
                     isResourcesExpanded={Boolean(
@@ -1605,11 +1674,12 @@ export default function RoadmapWorkspace() {
                     data-testid="roadmap-items"
                   >
                     {filteredAndSortedRoadmapItems.map((item) => {
-                      const resourceSkill = normalizeResourceSkill(
+                      const resourceCacheKey = getResourceCacheKey(
+                        CAREERLENS_DEV_USER_ID,
                         item.skill,
                       )
                       const resourceState =
-                        resourceStates[resourceSkill] || {}
+                        resourceStates[resourceCacheKey] || {}
 
                       return (
                         <RoadmapItem
@@ -1620,7 +1690,7 @@ export default function RoadmapWorkspace() {
                           updateError={progressErrors[item.id] || ''}
                           onProgressChange={handleProgressChange}
                           resourceData={
-                            resourceCache[resourceSkill] || null
+                            resourceCache[resourceCacheKey] || null
                           }
                           resourceLoading={Boolean(
                             resourceState.loading,

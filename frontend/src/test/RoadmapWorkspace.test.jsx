@@ -316,14 +316,38 @@ describe('roadmap workflow', () => {
       name: 'Explore learning resources',
     })
     await user.click(focusedResourceButton)
-    expect(await screen.findByText('Python documentation')).toBeInTheDocument()
+    expect(
+      (await screen.findAllByText('Python documentation')).length,
+    ).toBeGreaterThan(0)
     expect(fetchLearningResources).toHaveBeenCalledTimes(1)
+    expect(fetchLearningResources).toHaveBeenCalledWith('Python', 3)
 
     await user.click(screen.getByRole('button', { name: 'Back to roadmap' }))
     expect(screen.getByLabelText('Search skills')).toHaveValue('sql')
 
     await user.click(screen.getByRole('button', { name: 'Start learning' }))
     expect(fetchLearningResources).toHaveBeenCalledTimes(1)
+  })
+
+  it('refreshes expanded resources after preferences are saved', async () => {
+    const user = await renderRoadmap()
+    await user.click(
+      screen.getAllByRole('button', {
+        name: 'Explore learning resources',
+      })[0],
+    )
+    expect(
+      (await screen.findAllByText('Python documentation')).length,
+    ).toBeGreaterThan(0)
+
+    await user.click(
+      screen.getByRole('button', { name: 'Save preferences' }),
+    )
+
+    await waitFor(() => {
+      expect(fetchLearningResources).toHaveBeenCalledTimes(2)
+    })
+    expect(fetchLearningResources).toHaveBeenLastCalledWith('Python', 3)
   })
 
   it('retries failed resources without replacing the roadmap state', async () => {

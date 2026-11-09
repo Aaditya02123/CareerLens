@@ -102,17 +102,21 @@ export async function updateLearningRoadmapProgress(
   )
 }
 
-export async function fetchLearningResources(skill) {
+export async function fetchLearningResources(skill, userId = null) {
   if (!skill || !String(skill).trim()) {
     throw new Error(
       'A skill is required to load learning resources.',
     )
   }
 
+  const resourcePath = userId
+    ? `/users/${encodeURIComponent(
+        userId,
+      )}/learning-resources/${encodeURIComponent(skill)}`
+    : `/learning-resources/${encodeURIComponent(skill)}`
+
   const response = await fetch(
-    `${API_BASE_URL}/learning-resources/${encodeURIComponent(
-      skill,
-    )}`,
+    `${API_BASE_URL}${resourcePath}`,
   )
 
   return readJsonResponse(
