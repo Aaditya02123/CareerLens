@@ -13,6 +13,8 @@ import {
   fetchLearningRoadmap,
   updateLearningRoadmapProgress,
 } from '../../services/api/learningRoadmap'
+import FocusedLearningView from './FocusedLearningView'
+import RoadmapResourceSection from './RoadmapResourceSection'
 
 const PROGRESS_OPTIONS = [
   { value: 'not_started', label: 'Not started' },
@@ -177,10 +179,6 @@ function hasAvailableEffort(item) {
     Number.isFinite(item.minimum_hours) &&
     Number.isFinite(item.maximum_hours)
   )
-}
-
-function formatResourceType(resourceType) {
-  return String(resourceType || 'resource').replaceAll('_', ' ')
 }
 
 function SummaryMetric({ label, value }) {
@@ -449,112 +447,6 @@ function RoadmapSearchAndSort({
   )
 }
 
-function RoadmapResourceSection({
-  resourceKey,
-  resourceData,
-  resourceLoading,
-  resourceError,
-  isExpanded,
-  onToggle,
-  onRetry,
-}) {
-  const resourceSectionId = `roadmap-resources-${resourceKey}`
-  const resources = Array.isArray(resourceData?.resources)
-    ? resourceData.resources
-    : []
-
-  return (
-    <div className="mt-5 border-t border-white/8 pt-4">
-      <button
-        type="button"
-        aria-expanded={isExpanded}
-        aria-controls={resourceSectionId}
-        onClick={onToggle}
-        className="flex w-full items-center justify-between gap-3 text-left"
-      >
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#d6b36a]">
-          Learning resources
-        </span>
-
-        <span className="text-xs text-white/40">
-          {isExpanded ? 'Hide resources' : 'Explore resources'}
-        </span>
-      </button>
-
-      <div
-        id={resourceSectionId}
-        className="mt-4"
-        aria-live="polite"
-        hidden={!isExpanded}
-      >
-          {resourceLoading ? (
-            <div
-              className="rounded-xl border border-white/8 bg-white/[0.025] p-4"
-              aria-label="Loading learning resources"
-            >
-              <div className="h-4 w-2/3 animate-pulse rounded bg-white/[0.08]" />
-              <div className="mt-3 h-3 w-1/3 animate-pulse rounded bg-white/[0.06]" />
-            </div>
-          ) : resourceError ? (
-            <div
-              className="rounded-xl border border-red-300/15 bg-red-300/[0.035] p-4"
-              role="alert"
-            >
-              <p className="text-xs leading-5 text-red-100/70">
-                Learning resources are temporarily unavailable.
-              </p>
-
-              <p className="mt-1 text-[11px] leading-5 text-red-100/45">
-                {resourceError}
-              </p>
-
-              <button
-                type="button"
-                onClick={onRetry}
-                className="mt-3 rounded-lg border border-red-200/20 px-3 py-2 text-xs font-medium text-red-100/75 transition hover:bg-red-200/10"
-              >
-                Retry
-              </button>
-            </div>
-          ) : resources.length === 0 ? (
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-              <p className="text-xs leading-5 text-white/50">
-                No curated learning resources are currently available
-                for this skill.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {resources.map((resource) => (
-                <article
-                  key={resource.id}
-                  className="rounded-xl border border-white/8 bg-white/[0.02] p-4"
-                >
-                  <a
-                    href={resource.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm font-medium text-[#e5c57c]/90 underline-offset-4 hover:underline"
-                  >
-                    {resource.title || 'Learning resource'}
-                  </a>
-
-                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/40">
-                    <span>{resource.provider || 'Unknown provider'}</span>
-                    <span>
-                      {formatResourceType(resource.resource_type)}
-                    </span>
-                    <span>{resource.level || 'Level unavailable'}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-      </div>
-    </div>
-  )
-}
-
 function EffortBadge({ item }) {
   return hasAvailableEffort(item) ? (
     <span className="inline-flex rounded-full border border-[#d6b36a]/25 bg-[#d6b36a]/[0.06] px-3 py-1.5 text-xs font-medium text-[#e5c57c]/90">
@@ -685,6 +577,7 @@ function RecommendedNextSkill({
   isResourcesExpanded,
   onToggleResources,
   onRetryResources,
+  onStartLearning,
 }) {
   return (
     <section
@@ -725,6 +618,14 @@ function RecommendedNextSkill({
             {item.reason || 'No reason was provided.'}
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={onStartLearning}
+          className="shrink-0 rounded-lg bg-[#d6b36a] px-4 py-2.5 text-xs font-semibold text-[#17130b] transition hover:bg-[#e5c57c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f0d18b]/80"
+        >
+          Start learning
+        </button>
       </div>
 
       <RoadmapResourceSection
@@ -764,6 +665,7 @@ export default function RoadmapWorkspace() {
   const [expandedResources, setExpandedResources] = useState({})
   const [resourceCache, setResourceCache] = useState({})
   const [resourceStates, setResourceStates] = useState({})
+  const [focusedItemId, setFocusedItemId] = useState('')
 
   const roadmapRequestIdRef = useRef(0)
   const progressRequestIdsRef = useRef(new Map())
@@ -788,6 +690,14 @@ export default function RoadmapWorkspace() {
   const recommendedItem = useMemo(
     () => getRecommendedRoadmapItem(roadmapItems),
     [roadmapItems],
+  )
+
+  const focusedItem = useMemo(
+    () =>
+      roadmapItems.find(
+        (item) => String(item.id) === String(focusedItemId),
+      ) || null,
+    [roadmapItems, focusedItemId],
   )
 
   const progressSummary = useMemo(
@@ -877,6 +787,7 @@ export default function RoadmapWorkspace() {
     setProgressErrors({})
     setExpandedResources({})
     setResourceStates({})
+    setFocusedItemId('')
   }, [])
 
   const loadResume = useCallback(async () => {
@@ -951,6 +862,7 @@ export default function RoadmapWorkspace() {
     setProgressErrors({})
     setExpandedResources({})
     setResourceStates({})
+    setFocusedItemId('')
 
     if (!resume?.id || !selectedJob?.id) {
       setRoadmapLoading(false)
@@ -978,6 +890,12 @@ export default function RoadmapWorkspace() {
         }
       })
   }, [resume, selectedJob, roadmapRetryKey])
+
+  useEffect(() => {
+    if (focusedItemId && !focusedItem) {
+      setFocusedItemId('')
+    }
+  }, [focusedItem, focusedItemId])
 
   const loadResources = useCallback(
     async (skill, force = false) => {
@@ -1354,7 +1272,44 @@ export default function RoadmapWorkspace() {
                 <RoadmapProgressSummary summary={progressSummary} />
                 <RoadmapEffortSummary roadmap={roadmap} />
 
-                {roadmapItems.length === 0 ? (
+                {focusedItem ? (
+                  <FocusedLearningView
+                    item={focusedItem}
+                    isUpdating={Boolean(updatingItems[focusedItem.id])}
+                    updateError={progressErrors[focusedItem.id] || ''}
+                    onProgressChange={handleProgressChange}
+                    resourceData={
+                      resourceCache[
+                        normalizeResourceSkill(focusedItem.skill)
+                      ] || null
+                    }
+                    resourceLoading={Boolean(
+                      resourceStates[
+                        normalizeResourceSkill(focusedItem.skill)
+                      ]?.loading,
+                    )}
+                    resourceError={
+                      resourceStates[
+                        normalizeResourceSkill(focusedItem.skill)
+                      ]?.error || ''
+                    }
+                    isResourcesExpanded={Boolean(
+                      expandedResources[`focused-${focusedItem.id}`],
+                    )}
+                    onToggleResources={() =>
+                      handleToggleResources(
+                        focusedItem,
+                        `focused-${focusedItem.id}`,
+                      )
+                    }
+                    onRetryResources={() =>
+                      handleRetryResources(focusedItem.skill)
+                    }
+                    onBack={() => setFocusedItemId('')}
+                  />
+                ) : (
+                  <>
+                    {roadmapItems.length === 0 ? (
                   <section
                     className="mb-5 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.035] p-6"
                     aria-labelledby="roadmap-empty-heading"
@@ -1403,6 +1358,9 @@ export default function RoadmapWorkspace() {
                     onRetryResources={() =>
                       handleRetryResources(recommendedItem.skill)
                     }
+                    onStartLearning={() =>
+                      setFocusedItemId(String(recommendedItem.id))
+                    }
                   />
                 ) : (
                   <section
@@ -1427,20 +1385,20 @@ export default function RoadmapWorkspace() {
                   </section>
                 )}
 
-                <RoadmapProgressFilters
+                    <RoadmapProgressFilters
                   selectedFilter={selectedFilter}
                   filterCounts={progressFilterCounts}
                   onFilterChange={setSelectedFilter}
-                />
+                    />
 
-                <RoadmapSearchAndSort
+                    <RoadmapSearchAndSort
                   searchQuery={searchQuery}
                   sortOption={sortOption}
                   onSearchChange={setSearchQuery}
                   onSortChange={setSortOption}
-                />
+                    />
 
-                {filteredAndSortedRoadmapItems.length === 0 ? (
+                    {filteredAndSortedRoadmapItems.length === 0 ? (
                   <div className="rounded-2xl border border-white/8 bg-[#111111] p-6">
                     <p className="text-sm font-medium text-white/75">
                       No roadmap items match the current search and filters.
@@ -1469,7 +1427,7 @@ export default function RoadmapWorkspace() {
                       </button>
                     </div>
                   </div>
-                ) : (
+                    ) : (
                   <div className="space-y-3">
                     {filteredAndSortedRoadmapItems.map((item) => {
                       const resourceSkill = normalizeResourceSkill(
@@ -1506,6 +1464,8 @@ export default function RoadmapWorkspace() {
                       )
                     })}
                   </div>
+                    )}
+                  </>
                 )}
               </>
             ) : null}
