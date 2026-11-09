@@ -14,6 +14,7 @@ import {
   updateLearningRoadmapProgress,
 } from '../../services/api/learningRoadmap'
 import FocusedLearningView from './FocusedLearningView'
+import LearningJourneyTimeline from './LearningJourneyTimeline'
 import RoadmapResourceSection from './RoadmapResourceSection'
 
 const PROGRESS_OPTIONS = [
@@ -352,6 +353,50 @@ function RoadmapEffortSummary({ roadmap }) {
   )
 }
 
+function CompletionFeedback({
+  skill,
+  nextItem,
+  onContinue,
+}) {
+  return (
+    <section
+      className="mb-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.045] p-5"
+      aria-labelledby="roadmap-completion-feedback-heading"
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200/75">
+        Skill completed
+      </p>
+
+      <h3
+        id="roadmap-completion-feedback-heading"
+        className="mt-2 text-lg font-medium text-emerald-100/90"
+      >
+        {skill || 'This skill'} is now complete.
+      </h3>
+
+      {nextItem ? (
+        <>
+          <p className="mt-2 text-sm leading-6 text-white/50">
+            Your next recommended skill is {nextItem.skill || 'the next roadmap item'}.
+          </p>
+
+          <button
+            type="button"
+            onClick={onContinue}
+            className="mt-4 rounded-lg border border-emerald-200/25 px-3 py-2 text-xs font-medium text-emerald-100/80 transition hover:bg-emerald-200/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200/70"
+          >
+            Continue to next skill
+          </button>
+        </>
+      ) : (
+        <p className="mt-2 text-sm leading-6 text-white/50">
+          You have completed every skill in this roadmap.
+        </p>
+      )}
+    </section>
+  )
+}
+
 function RoadmapProgressFilters({
   selectedFilter,
   filterCounts,
@@ -666,6 +711,7 @@ export default function RoadmapWorkspace() {
   const [resourceCache, setResourceCache] = useState({})
   const [resourceStates, setResourceStates] = useState({})
   const [focusedItemId, setFocusedItemId] = useState('')
+  const [completionFeedback, setCompletionFeedback] = useState(null)
 
   const roadmapRequestIdRef = useRef(0)
   const progressRequestIdsRef = useRef(new Map())
@@ -699,6 +745,9 @@ export default function RoadmapWorkspace() {
       ) || null,
     [roadmapItems, focusedItemId],
   )
+
+  const roadmapIsComplete =
+    roadmapItems.length > 0 && !recommendedItem
 
   const progressSummary = useMemo(
     () => getProgressSummary(roadmapItems),
@@ -788,6 +837,7 @@ export default function RoadmapWorkspace() {
     setExpandedResources({})
     setResourceStates({})
     setFocusedItemId('')
+    setCompletionFeedback(null)
   }, [])
 
   const loadResume = useCallback(async () => {
@@ -863,6 +913,7 @@ export default function RoadmapWorkspace() {
     setExpandedResources({})
     setResourceStates({})
     setFocusedItemId('')
+    setCompletionFeedback(null)
 
     if (!resume?.id || !selectedJob?.id) {
       setRoadmapLoading(false)
@@ -1004,6 +1055,10 @@ export default function RoadmapWorkspace() {
   }
 
   async function handleProgressChange(itemId, nextStatus) {
+    const previousItem = roadmapItems.find(
+      (item) => String(item.id) === String(itemId),
+    )
+    const previousProgressStatus = previousItem?.progress_status
     const roadmapRequestIdAtRequest =
       roadmapRequestIdRef.current
     const nextRequestId =
@@ -1032,6 +1087,20 @@ export default function RoadmapWorkspace() {
       )
 
       if (!isCurrentProgressRequest()) return
+
+      if (
+        previousProgressStatus !== 'completed' &&
+        updatedItem.progress_status === 'completed'
+      ) {
+        setCompletionFeedback({
+          itemId: String(itemId),
+          skill: previousItem?.skill || 'This skill',
+        })
+      } else {
+        setCompletionFeedback((current) =>
+          current?.itemId === String(itemId) ? null : current,
+        )
+      }
 
       setRoadmap((current) => {
         if (!current) return current
@@ -1271,6 +1340,19 @@ export default function RoadmapWorkspace() {
               <>
                 <RoadmapProgressSummary summary={progressSummary} />
                 <RoadmapEffortSummary roadmap={roadmap} />
+                <LearningJourneyTimeline items={roadmapItems} />
+
+                {completionFeedback && !roadmapIsComplete && (
+                  <CompletionFeedback
+                    skill={completionFeedback.skill}
+                    nextItem={recommendedItem}
+                    onContinue={() => {
+                      if (recommendedItem) {
+                        setFocusedItemId(String(recommendedItem.id))
+                      }
+                    }}
+                  />
+                )}
 
                 {focusedItem ? (
                   <FocusedLearningView
@@ -1377,6 +1459,22 @@ export default function RoadmapWorkspace() {
                     >
                       All roadmap skills are completed.
                     </h3>
+
+                      <p className="mt-2 text-sm text-emerald-100/70">
+                        {progressSummary.completed} of {progressSummary.total}{' '}
+                        skills completed · 100%
+                      </p>
+
+                      <div
+                        className="mt-4 h-2 overflow-hidden rounded-full bg-emerald-100/10"
+                        role="progressbar"
+                        aria-label="Overall roadmap completion"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuenow="100"
+                      >
+                        <div className="h-full w-full rounded-full bg-emerald-200/75" />
+                      </div>
 
                     <p className="mt-2 text-sm leading-6 text-white/45">
                       Keep building evidence for these skills and revisit
