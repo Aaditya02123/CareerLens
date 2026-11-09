@@ -46,6 +46,11 @@ const PROGRESS_ORDER = {
   completed: 2,
 }
 
+const GAP_STATUS_ORDER = {
+  missing: 0,
+  partial: 1,
+}
+
 function sortResumesNewestFirst(resumes) {
   return [...resumes].sort((first, second) => {
     const firstTime = new Date(first.created_at || 0).getTime()
@@ -135,6 +140,37 @@ function getProgressFilterCounts(items) {
   }
 }
 
+function getRecommendedRoadmapItem(items) {
+  const safeItems = Array.isArray(items) ? items : []
+
+  return safeItems
+    .map((item, index) => ({ item, index }))
+    .filter(
+      ({ item }) => item?.progress_status !== 'completed',
+    )
+    .sort((first, second) => {
+      const firstPriority =
+        PRIORITY_ORDER[first.item?.priority] ?? 99
+      const secondPriority =
+        PRIORITY_ORDER[second.item?.priority] ?? 99
+
+      if (firstPriority !== secondPriority) {
+        return firstPriority - secondPriority
+      }
+
+      const firstGapStatus =
+        GAP_STATUS_ORDER[first.item?.status] ?? 99
+      const secondGapStatus =
+        GAP_STATUS_ORDER[second.item?.status] ?? 99
+
+      if (firstGapStatus !== secondGapStatus) {
+        return firstGapStatus - secondGapStatus
+      }
+
+      return first.index - second.index
+    })[0]?.item || null
+}
+
 function hasAvailableEffort(item) {
   return (
     item?.effort_available === true &&
@@ -153,6 +189,7 @@ function SummaryMetric({ label, value }) {
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">
         {label}
       </p>
+
       <p className="mt-2 text-xl font-medium text-white/85">
         {value}
       </p>
@@ -171,6 +208,7 @@ function RoadmapProgressSummary({ summary }) {
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
             Progress overview
           </p>
+
           <h3
             id="roadmap-progress-summary-heading"
             className="mt-2 text-lg font-medium text-white/90"
@@ -223,26 +261,25 @@ function RoadmapProgressSummary({ summary }) {
   )
 }
 
-
 function RoadmapEffortSummary({ roadmap }) {
   const totalItems = Number.isFinite(roadmap?.total_items)
     ? roadmap.total_items
     : 0
-
-  const minimumHours = Number.isFinite(roadmap?.total_minimum_hours)
+  const minimumHours = Number.isFinite(
+    roadmap?.total_minimum_hours,
+  )
     ? roadmap.total_minimum_hours
     : 0
-
-  const maximumHours = Number.isFinite(roadmap?.total_maximum_hours)
+  const maximumHours = Number.isFinite(
+    roadmap?.total_maximum_hours,
+  )
     ? roadmap.total_maximum_hours
     : 0
-
   const availableItems = Number.isFinite(
     roadmap?.effort_available_items,
   )
     ? roadmap.effort_available_items
     : 0
-
   const unavailableItems = Number.isFinite(
     roadmap?.effort_unavailable_items,
   )
@@ -277,24 +314,11 @@ function RoadmapEffortSummary({ roadmap }) {
 
       {totalItems === 0 ? (
         <p className="mt-4 text-sm leading-6 text-white/45">
-          There are no roadmap skills to estimate yet.
+          There are no roadmap skills with effort to estimate yet.
         </p>
       ) : (
         <>
-          {availableItems === 0 ? (
-            <p className="mt-4 text-sm leading-6 text-white/45">
-              No reliable effort estimates are currently available
-              for these roadmap skills.
-            </p>
-          ) : (
-            <p className="mt-4 text-sm leading-6 text-white/50">
-              This range represents indicative learning effort
-              for the complete roadmap, not a guaranteed
-              completion time.
-            </p>
-          )}
-
-          <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <SummaryMetric
               label="Skills estimated"
               value={availableItems}
@@ -304,22 +328,31 @@ function RoadmapEffortSummary({ roadmap }) {
               label="Estimates unavailable"
               value={unavailableItems}
             />
-          </div>
 
-          {availableItems > 0 && (
-            <div className="mt-3">
+            {availableItems > 0 && (
               <SummaryMetric
                 label="Total estimated effort"
                 value={`${minimumHours}–${maximumHours} hrs`}
               />
-            </div>
+            )}
+          </div>
+
+          {availableItems === 0 ? (
+            <p className="mt-4 text-sm leading-6 text-white/45">
+              No reliable effort estimate is currently available for
+              these roadmap skills.
+            </p>
+          ) : (
+            <p className="mt-4 text-sm leading-6 text-white/50">
+              This range is an indicative learning effort for the
+              complete roadmap.
+            </p>
           )}
         </>
       )}
     </section>
   )
 }
-
 
 function RoadmapProgressFilters({
   selectedFilter,
@@ -417,7 +450,7 @@ function RoadmapSearchAndSort({
 }
 
 function RoadmapResourceSection({
-  item,
+  resourceKey,
   resourceData,
   resourceLoading,
   resourceError,
@@ -425,7 +458,7 @@ function RoadmapResourceSection({
   onToggle,
   onRetry,
 }) {
-  const resourceSectionId = `roadmap-resources-${item.id}`
+  const resourceSectionId = `roadmap-resources-${resourceKey}`
   const resources = Array.isArray(resourceData?.resources)
     ? resourceData.resources
     : []
@@ -448,8 +481,12 @@ function RoadmapResourceSection({
         </span>
       </button>
 
-      {isExpanded && (
-        <div id={resourceSectionId} className="mt-4" aria-live="polite" hidden={!isExpanded}>
+      <div
+        id={resourceSectionId}
+        className="mt-4"
+        aria-live="polite"
+        hidden={!isExpanded}
+      >
           {resourceLoading ? (
             <div
               className="rounded-xl border border-white/8 bg-white/[0.025] p-4"
@@ -513,14 +550,26 @@ function RoadmapResourceSection({
               ))}
             </div>
           )}
-        </div>
-      )}
+      </div>
     </div>
+  )
+}
+
+function EffortBadge({ item }) {
+  return hasAvailableEffort(item) ? (
+    <span className="inline-flex rounded-full border border-[#d6b36a]/25 bg-[#d6b36a]/[0.06] px-3 py-1.5 text-xs font-medium text-[#e5c57c]/90">
+      {item.minimum_hours}–{item.maximum_hours} hours
+    </span>
+  ) : (
+    <span className="inline-flex rounded-full border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs text-white/45">
+      Estimate unavailable
+    </span>
   )
 }
 
 function RoadmapItem({
   item,
+  resourceKey,
   isUpdating,
   updateError,
   onProgressChange,
@@ -563,15 +612,7 @@ function RoadmapItem({
           </p>
 
           <div className="mt-4">
-            {hasAvailableEffort(item) ? (
-              <span className="inline-flex rounded-full border border-[#d6b36a]/25 bg-[#d6b36a]/[0.06] px-3 py-1.5 text-xs font-medium text-[#e5c57c]/90">
-                {item.minimum_hours}–{item.maximum_hours} hours
-              </span>
-            ) : (
-              <span className="inline-flex rounded-full border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs text-white/45">
-                Estimate unavailable
-              </span>
-            )}
+            <EffortBadge item={item} />
           </div>
         </div>
 
@@ -614,13 +655,16 @@ function RoadmapItem({
       </div>
 
       {updateError && (
-        <p className="mt-3 text-xs leading-5 text-red-200/75" role="alert">
+        <p
+          className="mt-3 text-xs leading-5 text-red-200/75"
+          role="alert"
+        >
           {updateError}
         </p>
       )}
 
       <RoadmapResourceSection
-        item={item}
+        resourceKey={resourceKey}
         resourceData={resourceData}
         resourceLoading={resourceLoading}
         resourceError={resourceError}
@@ -629,6 +673,70 @@ function RoadmapItem({
         onRetry={onRetryResources}
       />
     </article>
+  )
+}
+
+function RecommendedNextSkill({
+  item,
+  resourceKey,
+  resourceData,
+  resourceLoading,
+  resourceError,
+  isResourcesExpanded,
+  onToggleResources,
+  onRetryResources,
+}) {
+  return (
+    <section
+      className="mb-5 rounded-2xl border border-[#d6b36a]/30 bg-[#d6b36a]/[0.055] p-5"
+      aria-labelledby="recommended-next-skill-heading"
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+        Recommended next skill
+      </p>
+
+      <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3
+            id="recommended-next-skill-heading"
+            className="text-xl font-medium text-white/90"
+          >
+            {item.skill || 'Unnamed skill'}
+          </h3>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.13em] text-white/55">
+              {item.priority || 'unknown'} priority
+            </span>
+
+            <span
+              className={[
+                'rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.13em]',
+                getStatusStyles(item.status),
+              ].join(' ')}
+            >
+              {item.status || 'unknown'}
+            </span>
+
+            <EffortBadge item={item} />
+          </div>
+
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55">
+            {item.reason || 'No reason was provided.'}
+          </p>
+        </div>
+      </div>
+
+      <RoadmapResourceSection
+        resourceKey={resourceKey}
+        resourceData={resourceData}
+        resourceLoading={resourceLoading}
+        resourceError={resourceError}
+        isExpanded={isResourcesExpanded}
+        onToggle={onToggleResources}
+        onRetry={onRetryResources}
+      />
+    </section>
   )
 }
 
@@ -672,9 +780,15 @@ export default function RoadmapWorkspace() {
     [jobs, selectedJobId],
   )
 
-  const roadmapItems = Array.isArray(roadmap?.roadmap)
-    ? roadmap.roadmap
-    : []
+  const roadmapItems = useMemo(
+    () => (Array.isArray(roadmap?.roadmap) ? roadmap.roadmap : []),
+    [roadmap?.roadmap],
+  )
+
+  const recommendedItem = useMemo(
+    () => getRecommendedRoadmapItem(roadmapItems),
+    [roadmapItems],
+  )
 
   const progressSummary = useMemo(
     () => getProgressSummary(roadmapItems),
@@ -936,14 +1050,13 @@ export default function RoadmapWorkspace() {
     [resourceCache, resourceStates],
   )
 
-  function handleToggleResources(item) {
-    const itemId = String(item.id)
-    const isOpening = !expandedResources[itemId]
+  function handleToggleResources(item, resourceKey = String(item.id)) {
+    const isOpening = !expandedResources[resourceKey]
     const normalizedSkill = normalizeResourceSkill(item.skill)
 
     setExpandedResources((current) => ({
       ...current,
-      [itemId]: isOpening,
+      [resourceKey]: isOpening,
     }))
 
     if (
@@ -1241,6 +1354,79 @@ export default function RoadmapWorkspace() {
                 <RoadmapProgressSummary summary={progressSummary} />
                 <RoadmapEffortSummary roadmap={roadmap} />
 
+                {roadmapItems.length === 0 ? (
+                  <section
+                    className="mb-5 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.035] p-6"
+                    aria-labelledby="roadmap-empty-heading"
+                  >
+                    <h3
+                      id="roadmap-empty-heading"
+                      className="text-sm font-medium text-emerald-100/80"
+                    >
+                      No learning gaps are currently listed.
+                    </h3>
+
+                    <p className="mt-2 text-sm leading-6 text-white/40">
+                      There is no next skill to recommend for this roadmap.
+                    </p>
+                  </section>
+                ) : recommendedItem ? (
+                  <RecommendedNextSkill
+                    item={recommendedItem}
+                    resourceKey={`recommended-${recommendedItem.id}`}
+                    resourceData={
+                      resourceCache[
+                        normalizeResourceSkill(recommendedItem.skill)
+                      ] || null
+                    }
+                    resourceLoading={Boolean(
+                      resourceStates[
+                        normalizeResourceSkill(recommendedItem.skill)
+                      ]?.loading,
+                    )}
+                    resourceError={
+                      resourceStates[
+                        normalizeResourceSkill(recommendedItem.skill)
+                      ]?.error || ''
+                    }
+                    isResourcesExpanded={Boolean(
+                      expandedResources[
+                        `recommended-${recommendedItem.id}`
+                      ],
+                    )}
+                    onToggleResources={() =>
+                      handleToggleResources(
+                        recommendedItem,
+                        `recommended-${recommendedItem.id}`,
+                      )
+                    }
+                    onRetryResources={() =>
+                      handleRetryResources(recommendedItem.skill)
+                    }
+                  />
+                ) : (
+                  <section
+                    className="mb-5 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.035] p-6"
+                    aria-labelledby="roadmap-complete-heading"
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200/75">
+                      Roadmap complete
+                    </p>
+
+                    <h3
+                      id="roadmap-complete-heading"
+                      className="mt-2 text-lg font-medium text-emerald-100/90"
+                    >
+                      All roadmap skills are completed.
+                    </h3>
+
+                    <p className="mt-2 text-sm leading-6 text-white/45">
+                      Keep building evidence for these skills and revisit
+                      the roadmap when your target role changes.
+                    </p>
+                  </section>
+                )}
+
                 <RoadmapProgressFilters
                   selectedFilter={selectedFilter}
                   filterCounts={progressFilterCounts}
@@ -1254,18 +1440,7 @@ export default function RoadmapWorkspace() {
                   onSortChange={setSortOption}
                 />
 
-                {roadmapItems.length === 0 ? (
-                  <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.035] p-6">
-                    <p className="text-sm font-medium text-emerald-100/80">
-                      No learning gaps are currently listed.
-                    </p>
-
-                    <p className="mt-2 text-sm leading-6 text-white/40">
-                      Keep building evidence for the skills you already
-                      match and revisit this roadmap as your target changes.
-                    </p>
-                  </div>
-                ) : filteredAndSortedRoadmapItems.length === 0 ? (
+                {filteredAndSortedRoadmapItems.length === 0 ? (
                   <div className="rounded-2xl border border-white/8 bg-[#111111] p-6">
                     <p className="text-sm font-medium text-white/75">
                       No roadmap items match the current search and filters.
@@ -1307,6 +1482,7 @@ export default function RoadmapWorkspace() {
                         <RoadmapItem
                           key={item.id}
                           item={item}
+                          resourceKey={String(item.id)}
                           isUpdating={Boolean(updatingItems[item.id])}
                           updateError={progressErrors[item.id] || ''}
                           onProgressChange={handleProgressChange}
@@ -1318,10 +1494,10 @@ export default function RoadmapWorkspace() {
                           )}
                           resourceError={resourceState.error || ''}
                           isResourcesExpanded={Boolean(
-                            expandedResources[item.id],
+                            expandedResources[String(item.id)],
                           )}
                           onToggleResources={() =>
-                            handleToggleResources(item)
+                            handleToggleResources(item, String(item.id))
                           }
                           onRetryResources={() =>
                             handleRetryResources(item.skill)
