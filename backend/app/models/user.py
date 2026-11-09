@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 if TYPE_CHECKING:
+    from app.models.learning_preferences import UserLearningPreferences
     from app.models.resume import Resume
 
 
@@ -44,6 +45,12 @@ class User(Base):
     resumes: Mapped[list[Resume]] = relationship(
         "Resume",
         back_populates="user",
+    )
+
+    learning_preferences: Mapped[UserLearningPreferences | None] = relationship(
+        "UserLearningPreferences",
+        back_populates="user",
+        uselist=False,
     )
 
 

@@ -25,6 +25,9 @@ from app.api.job_recommendation import (
     router as job_recommendation_router,
 )
 from app.api.jobs import router as jobs_router
+from app.api.learning_preferences import (
+    router as learning_preferences_router,
+)
 from app.api.learning_resources import (
     router as learning_resources_router,
 )
@@ -61,6 +64,7 @@ app.include_router(profile_router)
 app.include_router(resume_router)
 app.include_router(users_router)
 app.include_router(jobs_router)
+app.include_router(learning_preferences_router)
 app.include_router(matching_router)
 app.include_router(semantic_matching_router)
 app.include_router(hybrid_matching_router)

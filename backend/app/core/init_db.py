@@ -5,6 +5,9 @@ from app.models.interview_session import (  # noqa: F401
     InterviewQuestion,
     InterviewSession,
 )
+from app.models.learning_preferences import (  # noqa: F401
+    UserLearningPreferences,
+)
 from app.models.jobs import Job  # noqa: F401
 from app.models.learning_roadmap_db import (  # noqa: F401
     LearningRoadmap,
