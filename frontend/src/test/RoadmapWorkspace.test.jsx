@@ -491,6 +491,31 @@ describe('roadmap workflow', () => {
     expect(fetchRoadmapSchedule.mock.calls.length).toBe(initialCallCount)
   })
 
+  it('updates the visible schedule summary after a successful progress update', async () => {
+    const user = await renderRoadmap()
+    fetchRoadmapSchedule.mockResolvedValueOnce(
+      createRoadmapSchedule({
+        remaining_minimum_hours: 3,
+        remaining_maximum_hours: 4,
+        estimated_minimum_weeks: 1,
+        estimated_maximum_weeks: 1,
+      }),
+    )
+    updateLearningRoadmapProgress.mockResolvedValueOnce({
+      id: 1,
+      progress_status: 'in_progress',
+    })
+
+    await user.selectOptions(
+      screen.getAllByLabelText('Progress')[0],
+      'in_progress',
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('3–4 hrs')).toBeInTheDocument()
+    })
+  })
+
   it('ignores an older schedule response after switching jobs', async () => {
     const requests = new Map()
     fetchLearningRoadmap.mockResolvedValue(createRoadmap())
@@ -523,5 +548,55 @@ describe('roadmap workflow', () => {
       schedule_status: 'on_track',
     })
     expect(await screen.findByText('On track')).toBeInTheDocument()
+  })
+
+  it('ignores an older resource response after switching jobs', async () => {
+    const resourceRequests = []
+    const user = await renderRoadmap()
+    fetchLearningResources.mockImplementation(
+      (skill, userId) =>
+        new Promise((resolve) => {
+          resourceRequests.push({ skill, userId, resolve })
+        }),
+    )
+
+    await user.click(
+      screen.getAllByRole('button', {
+        name: 'Explore learning resources',
+      })[0],
+    )
+    await waitFor(() => {
+      expect(resourceRequests).toHaveLength(1)
+    })
+
+    await user.selectOptions(
+      screen.getByLabelText('Target job'),
+      '20',
+    )
+    expect(
+      await screen.findByRole('heading', {
+        level: 2,
+        name: 'Frontend Engineer',
+      }),
+    ).toBeInTheDocument()
+
+    resourceRequests[0].resolve(resources)
+    await Promise.resolve()
+    expect(screen.queryByText('Python documentation')).not.toBeInTheDocument()
+
+    await user.click(
+      screen.getAllByRole('button', {
+        name: 'Explore learning resources',
+      })[0],
+    )
+    await waitFor(() => {
+      expect(resourceRequests).toHaveLength(2)
+    })
+    expect(resourceRequests[1].userId).toBe(3)
+
+    resourceRequests[1].resolve(resources)
+    expect(
+      (await screen.findAllByText('Python documentation')).length,
+    ).toBeGreaterThan(0)
   })
 })
