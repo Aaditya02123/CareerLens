@@ -54,6 +54,23 @@ External systems are accessed through adapters rather than being absorbed into t
 
 The backend will eventually be organized by functional modules, for example profile, resume, jobs, matching, skills, roadmaps, applications, outreach, and interviews. Shared infrastructure should be kept small and introduced only when a feature requires it.
 
+### Interview blueprint foundation
+
+The interview preparation module now has a persisted blueprint aggregate. A
+blueprint references a resume and job, and owns competency, question-plan, and
+rubric child records. Generation is an application-service workflow: the
+service loads persisted resume analysis and job requirements, calls the
+provider-neutral `LLMGenerationProvider`, validates grounded structured JSON,
+and asks a repository to persist the complete aggregate atomically. API routes
+only validate HTTP input, map domain errors, and return Pydantic responses.
+
+Blueprint generation is deliberately separate from an executed
+`InterviewSession`. The existing deterministic question/session flow remains
+backward compatible, while future milestones can start a session from a
+validated blueprint. Blueprint records store references and the evidence
+strings needed to explain why a question is relevant; raw resume contents and
+candidate performance scores are not stored in the blueprint.
+
 ## Deferred decisions
 
 - Authentication provider and authorization model

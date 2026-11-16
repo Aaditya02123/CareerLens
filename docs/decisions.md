@@ -26,6 +26,25 @@ Record durable decisions here as the project evolves. Each entry should include 
 - **Decision:** Place AI/NLP logic behind service-facing interfaces rather than inside FastAPI route handlers.
 - **Consequences:** Route handlers remain thin; model choices can evolve with less impact on the API.
 
+## D-004: Persist interview blueprints as validated aggregates
+
+- **Status:** Accepted
+- **Date:** 2026-11-16
+- **Context:** Interview practice needs a repeatable role-specific plan and
+  rubric before a conversational session can begin.
+- **Decision:** Store an `InterviewBlueprint` with child competency, ordered
+  question, and rubric records. Generate it in a service through the existing
+  provider-neutral LLM interface, validate structured output and grounding,
+  then persist the aggregate atomically through a repository.
+- **Consequences:** Blueprint retrieval is deterministic and auditable, and
+  later sessions can reference a stable plan. Provider output that cannot be
+  grounded is rejected; no candidate performance scores are generated at this
+  stage. The development `init_db.py` registration remains the schema setup
+  mechanism until migration tooling is introduced.
+- **Alternatives considered:** Keeping blueprints only in memory would lose
+  reproducibility; changing the existing `InterviewSession` question table
+  would mix planning with execution and risk breaking current APIs.
+
 ## Decision template
 
 ```markdown

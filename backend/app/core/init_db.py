@@ -5,6 +5,12 @@ from app.models.interview_session import (  # noqa: F401
     InterviewQuestion,
     InterviewSession,
 )
+from app.models.interview_blueprint import (  # noqa: F401
+    BlueprintCompetency,
+    BlueprintQuestion,
+    BlueprintRubricCriterion,
+    InterviewBlueprint,
+)
 from app.models.learning_preferences import (  # noqa: F401
     UserLearningPreferences,
 )

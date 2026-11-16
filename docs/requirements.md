@@ -49,3 +49,13 @@ This document captures the major planned capabilities. It is a scope map, not an
 - Make AI-generated recommendations explainable where practical.
 - Keep external integrations replaceable through adapters.
 - Build and evaluate features incrementally, with tests appropriate to each change.
+
+## 8. Interview blueprint foundation
+
+- Generate a structured interview blueprint for a selected resume and job.
+- Persist competencies, an ordered question plan, and a category-aware rubric.
+- Ground candidate evidence in persisted resume analysis and job requirements.
+- Validate provider output before persistence; reject malformed or unsupported
+  claims rather than silently falling back.
+- Keep blueprint generation independent of interview execution, answer
+  evaluation, media capture, and hiring decisions.
