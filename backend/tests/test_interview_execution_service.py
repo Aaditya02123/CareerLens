@@ -30,6 +30,9 @@ def _question(question_id, order):
         target_competency="Python",
         assessment_objective="Assess reasoning",
         relevance_reason="Python is required.",
+        is_follow_up=False,
+        parent_question_id=None,
+        conversation_order=order,
     )
 
 
@@ -97,6 +100,7 @@ class FakeRepository:
             session_id=session_record.id,
             session_question_id=question.id,
             question_order=question.question_order,
+            conversation_order=question.conversation_order,
             answer=answer_text,
             submitted_at=datetime.now(timezone.utc),
         )

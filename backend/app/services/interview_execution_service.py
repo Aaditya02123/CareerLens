@@ -96,7 +96,7 @@ class InterviewExecutionService:
                 InterviewSessionAnswerResponse.model_validate(answer)
                 for answer in sorted(
                     record.answers,
-                    key=lambda item: item.question_order,
+                    key=lambda item: item.conversation_order,
                 )
             ],
         )

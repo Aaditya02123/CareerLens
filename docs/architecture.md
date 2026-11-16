@@ -79,6 +79,15 @@ the final answer transitions the session to `completed`. This separate table
 family preserves the existing legacy interview-session API while making
 blueprint execution resumable and auditable.
 
+Adaptive decisions are requested explicitly after a planned answer through
+`POST /interview-preparation/sessions/{session_id}/adaptive-decision`. The
+answer is already committed before provider generation starts, so provider
+failure leaves the answer and session progress intact. A unique
+session/parent-question decision constraint makes retries idempotent; a short
+row-locked transaction persists either a `continue` decision or one follow-up
+snapshot. Follow-ups use fractional conversation ordering and do not open a
+second answer model.
+
 ## Deferred decisions
 
 - Authentication provider and authorization model

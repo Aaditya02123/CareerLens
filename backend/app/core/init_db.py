@@ -6,6 +6,7 @@ from app.models.interview_session import (  # noqa: F401
     InterviewSession,
 )
 from app.models.interview_execution import (  # noqa: F401
+    InterviewAdaptiveDecision,
     InterviewExecutionSession,
     InterviewSessionAnswer,
     InterviewSessionQuestion,

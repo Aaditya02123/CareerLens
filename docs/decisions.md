@@ -63,6 +63,27 @@ Record durable decisions here as the project evolves. Each entry should include 
   table would require a risky lifecycle migration and could break committed
   clients and tests.
 
+## D-006: Make adaptivity an explicit idempotent operation
+
+- **Status:** Accepted
+- **Date:** 2026-11-16
+- **Context:** LLM generation is slow and may fail, while answers must remain
+  durable and repeatable interview decisions must not create duplicate
+  follow-ups.
+- **Decision:** Keep answer submission synchronous and deterministic. Expose a
+  separate adaptive-decision request after a planned answer. Generate outside
+  database locks, then use a short locked transaction plus a unique
+  session/parent-question constraint to persist one `continue` or one
+  follow-up decision. Follow-ups are session-question snapshots ordered
+  immediately after their parent.
+- **Consequences:** Provider failures are safely retryable and cannot lose a
+  submitted answer. Concurrent requests may duplicate provider work, but only
+  one persisted decision wins and subsequent requests return it. Adaptivity is
+  bounded to one follow-up per planned question and three per session.
+- **Alternatives considered:** Calling the provider while holding the session
+  row lock would simplify serialization but would hold a database lock during
+  network latency and increase contention.
+
 ## Decision template
 
 ```markdown

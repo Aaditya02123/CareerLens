@@ -71,3 +71,14 @@ This document captures the major planned capabilities. It is a scope map, not an
 - Complete a session automatically after its final required answer.
 - Keep answer evaluation, adaptive follow-ups, and media capture out of this
   foundation milestone.
+
+## 10. Controlled adaptive interview questions
+
+- Evaluate whether a follow-up adds value without scoring the candidate.
+- Persist one decision per planned question and at most one follow-up per
+  planned question.
+- Bound follow-ups to three per execution session.
+- Generate provider output outside database locks and persist it atomically.
+- Return persisted decisions on retry rather than regenerating them.
+- Keep adaptive prompts grounded in the original question, answer, resume,
+  job, and blueprint competencies.

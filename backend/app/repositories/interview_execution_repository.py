@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -9,6 +10,7 @@ from app.models.interview_blueprint import InterviewBlueprint
 from app.models.interview_execution import (
     InterviewExecutionSession,
     InterviewExecutionStatus,
+    InterviewAdaptiveDecision,
     InterviewSessionAnswer,
     InterviewSessionQuestion,
 )
@@ -78,6 +80,7 @@ class InterviewExecutionRepository:
                         target_competency=question.target_competency,
                         assessment_objective=question.assessment_objective,
                         relevance_reason=question.relevance_reason,
+                        conversation_order=Decimal(order),
                     )
                 )
             self.session.commit()
@@ -122,11 +125,25 @@ class InterviewExecutionRepository:
         }
         for question in sorted(
             session_record.questions,
-            key=lambda item: item.question_order,
+            key=lambda item: item.conversation_order,
         ):
             if question.id not in answered_ids:
                 return question
         return None
+
+    def get_question_by_id(
+        self,
+        session_record: InterviewExecutionSession,
+        question_id: int,
+    ) -> InterviewSessionQuestion | None:
+        return next(
+            (
+                question
+                for question in session_record.questions
+                if question.id == question_id
+            ),
+            None,
+        )
 
     def get_answer_by_question(
         self,
@@ -138,6 +155,87 @@ class InterviewExecutionRepository:
             InterviewSessionAnswer.session_question_id == question_id,
         )
         return self.session.scalar(statement)
+
+    def get_adaptive_decision(
+        self,
+        session_id: int,
+        parent_question_id: int,
+    ) -> InterviewAdaptiveDecision | None:
+        statement = select(InterviewAdaptiveDecision).where(
+            InterviewAdaptiveDecision.session_id == session_id,
+            InterviewAdaptiveDecision.parent_question_id == parent_question_id,
+        )
+        return self.session.scalar(statement)
+
+    def create_adaptive_decision(
+        self,
+        *,
+        session_record: InterviewExecutionSession,
+        parent_question: InterviewSessionQuestion,
+        outcome: str,
+        rationale: str,
+        follow_up_type: str | None,
+        competency_reference: str | None,
+        follow_up_question: dict[str, object] | None,
+    ) -> InterviewAdaptiveDecision:
+        decision = InterviewAdaptiveDecision(
+            session_id=session_record.id,
+            parent_question_id=parent_question.id,
+            outcome=outcome,
+            rationale=rationale,
+            follow_up_type=follow_up_type,
+            competency_reference=competency_reference,
+        )
+        self.session.add(decision)
+
+        try:
+            if follow_up_question is not None:
+                next_question_order = parent_question.question_order * 1000 + 1
+                follow_up = InterviewSessionQuestion(
+                    session_id=session_record.id,
+                    blueprint_question_id=None,
+                    question_order=next_question_order,
+                    question=str(follow_up_question["question"]),
+                    question_category=str(
+                        follow_up_question["question_category"]
+                    ),
+                    difficulty=str(follow_up_question["difficulty"]),
+                    target_competency=str(
+                        follow_up_question["target_competency"]
+                    ),
+                    assessment_objective=str(
+                        follow_up_question["assessment_objective"]
+                    ),
+                    relevance_reason=str(
+                        follow_up_question["relevance_reason"]
+                    ),
+                    is_follow_up=True,
+                    parent_question_id=parent_question.id,
+                    conversation_order=(
+                        parent_question.conversation_order + Decimal("0.5")
+                    ),
+                )
+                self.session.add(follow_up)
+                self.session.flush()
+                decision.follow_up_question_id = follow_up.id
+                session_record.total_questions += 1
+
+            self.session.commit()
+        except IntegrityError as error:
+            self.session.rollback()
+            existing = self.get_adaptive_decision(
+                session_record.id,
+                parent_question.id,
+            )
+            if existing is not None:
+                return existing
+            raise error
+        except SQLAlchemyError:
+            self.session.rollback()
+            raise
+
+        self.session.refresh(decision)
+        return decision
 
     def start(
         self,
@@ -163,6 +261,7 @@ class InterviewExecutionRepository:
             session_id=session_record.id,
             session_question_id=question.id,
             question_order=question.question_order,
+            conversation_order=question.conversation_order,
             answer=answer_text,
         )
         self.session.add(answer)
