@@ -90,6 +90,23 @@ def test_put_saves_preferences_and_returns_http_200(client, monkeypatch):
     assert mocked_service.call_args.kwargs["payload"].weekly_hours == 8
 
 
+def test_cors_preflight_allows_learning_preferences_put(client):
+    response = client.options(
+        "/users/3/learning-preferences",
+        headers={
+            "Origin": "http://127.0.0.1:5173",
+            "Access-Control-Request-Method": "PUT",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == (
+        "http://127.0.0.1:5173"
+    )
+    assert "PUT" in response.headers["access-control-allow-methods"]
+
+
 def test_unknown_user_returns_http_404(client, monkeypatch):
     monkeypatch.setattr(
         api_module,
