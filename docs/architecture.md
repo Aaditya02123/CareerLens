@@ -71,6 +71,14 @@ validated blueprint. Blueprint records store references and the evidence
 strings needed to explain why a question is relevant; raw resume contents and
 candidate performance scores are not stored in the blueprint.
 
+The J5.2 execution engine uses `InterviewExecutionSession` and immutable
+`InterviewSessionQuestion` snapshots. A session is created from a persisted
+blueprint in one transaction, starts explicitly, and accepts only the next
+unanswered snapshot in order. Answers and progress are committed together;
+the final answer transitions the session to `completed`. This separate table
+family preserves the existing legacy interview-session API while making
+blueprint execution resumable and auditable.
+
 ## Deferred decisions
 
 - Authentication provider and authorization model

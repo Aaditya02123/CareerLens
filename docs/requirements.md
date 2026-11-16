@@ -59,3 +59,15 @@ This document captures the major planned capabilities. It is a scope map, not an
   claims rather than silently falling back.
 - Keep blueprint generation independent of interview execution, answer
   evaluation, media capture, and hiring decisions.
+
+## 9. Interview session execution
+
+- Create executable sessions from saved blueprints without mutating the
+  source blueprint.
+- Snapshot ordered blueprint questions at session creation.
+- Require an explicit start transition before answers are accepted.
+- Persist each answer and progress advancement atomically.
+- Reject empty, duplicate, out-of-order, and out-of-session answers.
+- Complete a session automatically after its final required answer.
+- Keep answer evaluation, adaptive follow-ups, and media capture out of this
+  foundation milestone.

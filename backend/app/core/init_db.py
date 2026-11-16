@@ -5,6 +5,11 @@ from app.models.interview_session import (  # noqa: F401
     InterviewQuestion,
     InterviewSession,
 )
+from app.models.interview_execution import (  # noqa: F401
+    InterviewExecutionSession,
+    InterviewSessionAnswer,
+    InterviewSessionQuestion,
+)
 from app.models.interview_blueprint import (  # noqa: F401
     BlueprintCompetency,
     BlueprintQuestion,

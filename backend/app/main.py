@@ -14,6 +14,9 @@ from app.api.interview_evaluation import (
 from app.api.interview_blueprints import (
     router as interview_blueprints_router,
 )
+from app.api.interview_execution import (
+    router as interview_execution_router,
+)
 from app.api.interview_preparation import (
     router as interview_preparation_router,
 )
@@ -85,3 +88,4 @@ app.include_router(interview_sessions_router)
 app.include_router(interview_evaluation_router)
 app.include_router(interview_report_router)
 app.include_router(interview_blueprints_router)
+app.include_router(interview_execution_router)

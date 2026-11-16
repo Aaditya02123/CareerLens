@@ -45,6 +45,24 @@ Record durable decisions here as the project evolves. Each entry should include 
   reproducibility; changing the existing `InterviewSession` question table
   would mix planning with execution and risk breaking current APIs.
 
+## D-005: Isolate executable sessions from the legacy interview tables
+
+- **Status:** Accepted
+- **Date:** 2026-11-16
+- **Context:** The repository already contains an older mock-interview
+  session API with different lifecycle values and answer contracts.
+- **Decision:** Implement J5.2 with `InterviewExecutionSession`, immutable
+  `InterviewSessionQuestion` snapshots, and `InterviewSessionAnswer` records.
+  Creation and answer/progress updates are transactional, and the next
+  question is always derived from persisted question order and answers.
+- **Consequences:** Existing interview APIs remain compatible while the new
+  blueprint engine has explicit created/in-progress/completed lifecycle
+  semantics. The source blueprint is never mutated; future evaluation can
+  reference stable session snapshots.
+- **Alternatives considered:** Altering the existing `interview_sessions`
+  table would require a risky lifecycle migration and could break committed
+  clients and tests.
+
 ## Decision template
 
 ```markdown
