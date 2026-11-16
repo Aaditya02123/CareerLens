@@ -11,6 +11,11 @@ from app.models.interview_execution import (  # noqa: F401
     InterviewSessionAnswer,
     InterviewSessionQuestion,
 )
+from app.models.interview_scorecard import (  # noqa: F401
+    CriterionEvaluation,
+    InterviewAnswerEvaluation,
+    InterviewScorecard,
+)
 from app.models.interview_blueprint import (  # noqa: F401
     BlueprintCompetency,
     BlueprintQuestion,

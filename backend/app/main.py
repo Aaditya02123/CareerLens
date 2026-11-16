@@ -20,6 +20,9 @@ from app.api.interview_execution import (
 from app.api.adaptive_interview import (
     router as adaptive_interview_router,
 )
+from app.api.interview_evaluation_scorecard import (
+    router as interview_evaluation_scorecard_router,
+)
 from app.api.interview_preparation import (
     router as interview_preparation_router,
 )
@@ -93,3 +96,4 @@ app.include_router(interview_report_router)
 app.include_router(interview_blueprints_router)
 app.include_router(interview_execution_router)
 app.include_router(adaptive_interview_router)
+app.include_router(interview_evaluation_scorecard_router)

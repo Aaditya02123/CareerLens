@@ -80,6 +80,9 @@ class InterviewExecutionRepository:
                         target_competency=question.target_competency,
                         assessment_objective=question.assessment_objective,
                         relevance_reason=question.relevance_reason,
+                        rubric_criteria=list(
+                            getattr(question, "rubric_criteria", []) or []
+                        ),
                         conversation_order=Decimal(order),
                     )
                 )
@@ -208,6 +211,9 @@ class InterviewExecutionRepository:
                     ),
                     relevance_reason=str(
                         follow_up_question["relevance_reason"]
+                    ),
+                    rubric_criteria=list(
+                        getattr(parent_question, "rubric_criteria", []) or []
                     ),
                     is_follow_up=True,
                     parent_question_id=parent_question.id,

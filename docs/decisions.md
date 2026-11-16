@@ -84,6 +84,27 @@ Record durable decisions here as the project evolves. Each entry should include 
   row lock would simplify serialization but would hold a database lock during
   network latency and increase contention.
 
+## D-007: Persist rubric-grounded answer evaluations and scorecards
+
+- **Status:** Accepted
+- **Date:** 2026-11-16
+- **Context:** Executed interview answers need explainable feedback and a
+  repeatable aggregate without blocking answer submission or making hiring
+  decisions.
+- **Decision:** Evaluate answers in a separate service using the persisted
+  blueprint rubric and provider-neutral structured JSON. Persist one
+  criterion-level evaluation per answer and one derived scorecard per
+  execution session. Provider calls occur before the short persistence
+  transaction; uniqueness constraints make retries idempotent.
+- **Consequences:** Scores are auditable and pending answers are explicit.
+  Provider failures leave session answers unchanged. The scorecard is
+  advisory only and does not alter progression or rank candidates. A future
+  migration must create the evaluation tables and snapshot rubric criteria on
+  execution questions.
+- **Alternatives considered:** Recomputing evaluations on every read would
+  lose reproducibility; adding scoring to answer submission would make
+  provider availability a prerequisite for completing an interview.
+
 ## Decision template
 
 ```markdown

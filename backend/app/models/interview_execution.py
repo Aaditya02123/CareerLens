@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import DateTime, Enum as SQLAlchemyEnum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, Enum as SQLAlchemyEnum, ForeignKey, Integer, JSON, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -65,6 +65,18 @@ class InterviewExecutionSession(Base):
         cascade="all, delete-orphan",
         order_by="InterviewSessionAnswer.question_order",
     )
+    evaluations: Mapped[list["InterviewAnswerEvaluation"]] = relationship(
+        "InterviewAnswerEvaluation",
+        back_populates="session",
+        cascade="all, delete-orphan",
+    )
+    scorecard: Mapped["InterviewScorecard | None"] = relationship(
+        "InterviewScorecard",
+        back_populates="session",
+        uselist=False,
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
 
 
 class InterviewSessionQuestion(Base):
@@ -88,9 +100,9 @@ class InterviewSessionQuestion(Base):
         nullable=False,
         index=True,
     )
-    blueprint_question_id: Mapped[int] = mapped_column(
+    blueprint_question_id: Mapped[int | None] = mapped_column(
         ForeignKey("interview_blueprint_questions.id"),
-        nullable=False,
+        nullable=True,
     )
     question_order: Mapped[int] = mapped_column(Integer, nullable=False)
     question: Mapped[str] = mapped_column(Text, nullable=False)
@@ -99,6 +111,9 @@ class InterviewSessionQuestion(Base):
     target_competency: Mapped[str] = mapped_column(String(255), nullable=False)
     assessment_objective: Mapped[str] = mapped_column(Text, nullable=False)
     relevance_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    rubric_criteria: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
     is_follow_up: Mapped[bool] = mapped_column(
         nullable=False, default=False
     )
@@ -115,6 +130,11 @@ class InterviewSessionQuestion(Base):
     answers: Mapped[list[InterviewSessionAnswer]] = relationship(
         "InterviewSessionAnswer",
         back_populates="question_record",
+        cascade="all, delete-orphan",
+    )
+    evaluations: Mapped[list["InterviewAnswerEvaluation"]] = relationship(
+        "InterviewAnswerEvaluation",
+        back_populates="question",
         cascade="all, delete-orphan",
     )
     parent_question: Mapped[InterviewSessionQuestion | None] = relationship(
@@ -163,6 +183,13 @@ class InterviewSessionAnswer(Base):
     )
     question_record: Mapped[InterviewSessionQuestion] = relationship(
         "InterviewSessionQuestion", back_populates="answers"
+    )
+    evaluation: Mapped["InterviewAnswerEvaluation | None"] = relationship(
+        "InterviewAnswerEvaluation",
+        back_populates="answer",
+        uselist=False,
+        cascade="all, delete-orphan",
+        single_parent=True,
     )
 
 

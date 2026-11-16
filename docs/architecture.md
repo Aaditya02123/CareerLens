@@ -88,6 +88,25 @@ row-locked transaction persists either a `continue` decision or one follow-up
 snapshot. Follow-ups use fractional conversation ordering and do not open a
 second answer model.
 
+### J5.4 answer evaluation and scorecards
+
+Submitted execution answers are evaluated separately from answer submission.
+The evaluation service loads the immutable session question, its persisted
+blueprint competency and rubric criteria, the submitted answer, and grounded
+resume/job context before calling the provider abstraction. Provider JSON is
+validated strictly: every configured criterion must appear exactly once, all
+evidence excerpts must occur in the submitted answer, and scores remain on the
+blueprint's 0-5 scale. The repository persists one evaluation per answer and
+its criterion rows atomically, then maintains one scorecard per execution
+session.
+
+Scorecards aggregate evaluated answers by competency using blueprint weights.
+Unevaluated answers remain pending and are not treated as zero. Evaluation is
+advisory only; it never changes session progression, creates follow-up
+questions, or makes hiring decisions. Provider calls happen outside the
+persistence transaction, and retries return an existing evaluation protected
+by a database uniqueness constraint.
+
 ## Deferred decisions
 
 - Authentication provider and authorization model

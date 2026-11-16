@@ -82,3 +82,16 @@ This document captures the major planned capabilities. It is a scope map, not an
 - Return persisted decisions on retry rather than regenerating them.
 - Keep adaptive prompts grounded in the original question, answer, resume,
   job, and blueprint competencies.
+
+## 11. Interview answer evaluation and scorecards
+
+- Evaluate submitted text answers against the persisted blueprint rubric.
+- Preserve criterion-level 0-5 scores, concise explanations, answer excerpts,
+  and improvement suggestions.
+- Reject malformed provider output, unsupported criteria, duplicate criteria,
+  missing criteria, and evidence that is not present in the answer.
+- Persist one evaluation per answer and maintain a session scorecard with
+  competency-weighted aggregation.
+- Keep pending answers visible without treating them as zero scores.
+- Keep evaluation advisory and independent from answer submission, adaptive
+  question generation, and hiring decisions.
