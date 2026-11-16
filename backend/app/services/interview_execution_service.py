@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.models.interview_blueprint import InterviewBlueprint
 from app.models.interview_execution import (
     InterviewExecutionSession,
     InterviewExecutionSessionResponse,
@@ -41,8 +40,16 @@ class InterviewExecutionService:
     def __init__(self, session: Session) -> None:
         self.repository = InterviewExecutionRepository(session)
 
-    def _get_session(self, session_id: int) -> InterviewExecutionSession:
-        record = self.repository.get_by_id(session_id)
+    def _get_session(
+        self,
+        session_id: int,
+        *,
+        for_update: bool = False,
+    ) -> InterviewExecutionSession:
+        if for_update:
+            record = self.repository.get_by_id_for_update(session_id)
+        else:
+            record = self.repository.get_by_id(session_id)
         if record is None:
             raise InterviewExecutionSessionNotFoundError(
                 "The requested interview session was not found."
@@ -122,7 +129,7 @@ class InterviewExecutionService:
         self,
         session_id: int,
     ) -> InterviewExecutionSessionResponse:
-        record = self._get_session(session_id)
+        record = self._get_session(session_id, for_update=True)
         if record.status != InterviewExecutionStatus.CREATED:
             raise InvalidInterviewExecutionTransitionError(
                 "Only a created interview session can be started."
@@ -135,7 +142,7 @@ class InterviewExecutionService:
         session_id: int,
         answer_data: InterviewSessionAnswerCreate,
     ) -> InterviewExecutionSessionResponse:
-        record = self._get_session(session_id)
+        record = self._get_session(session_id, for_update=True)
         if record.status != InterviewExecutionStatus.IN_PROGRESS:
             raise InvalidInterviewExecutionTransitionError(
                 "Answers can only be submitted to an in-progress session."

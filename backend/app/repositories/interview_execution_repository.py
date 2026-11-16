@@ -90,6 +90,8 @@ class InterviewExecutionRepository:
     def get_by_id(
         self,
         session_id: int,
+        *,
+        for_update: bool = False,
     ) -> InterviewExecutionSession | None:
         statement = (
             select(InterviewExecutionSession)
@@ -99,7 +101,16 @@ class InterviewExecutionRepository:
             )
             .where(InterviewExecutionSession.id == session_id)
         )
+        if for_update:
+            statement = statement.with_for_update()
         return self.session.scalar(statement)
+
+    def get_by_id_for_update(
+        self,
+        session_id: int,
+    ) -> InterviewExecutionSession | None:
+        """Lock one session row until the current transaction completes."""
+        return self.get_by_id(session_id, for_update=True)
 
     def get_next_unanswered_question(
         self,

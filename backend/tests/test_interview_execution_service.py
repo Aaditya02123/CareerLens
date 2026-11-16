@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.interview_execution import (
     InterviewExecutionStatus,
@@ -52,16 +53,20 @@ class FakeRepository:
         return self.blueprint if self.blueprint and blueprint_id == 4 else None
 
     def create_from_blueprint(self, blueprint):
+        question_snapshot = [
+            SimpleNamespace(**vars(question))
+            for question in blueprint.questions
+        ]
         record = SimpleNamespace(
             id=self.next_id,
             blueprint_id=blueprint.id,
             status=InterviewExecutionStatus.CREATED,
-            total_questions=len(blueprint.questions),
+            total_questions=len(question_snapshot),
             answered_questions=0,
             created_at=datetime.now(timezone.utc),
             started_at=None,
             completed_at=None,
-            questions=list(blueprint.questions),
+            questions=question_snapshot,
             answers=[],
         )
         self.next_id += 1
@@ -70,6 +75,9 @@ class FakeRepository:
 
     def get_by_id(self, session_id):
         return self.sessions.get(session_id)
+
+    def get_by_id_for_update(self, session_id):
+        return self.get_by_id(session_id)
 
     def get_next_unanswered_question(self, record):
         answered = {answer.session_question_id for answer in record.answers}
@@ -120,6 +128,16 @@ def test_create_session_snapshots_questions_in_order(service):
     assert result.answered_questions == 0
     assert result.current_question_position == 1
     assert result.next_question.question == "Question 1"
+
+
+def test_session_snapshot_does_not_follow_blueprint_mutations(service):
+    execution, repository = service
+    created = execution.create_session(4)
+    repository.blueprint.questions[0].question = "Changed blueprint text"
+
+    resumed = execution.get_session(created.id)
+
+    assert resumed.next_question.question == "Question 1"
 
 
 def test_missing_or_empty_blueprint_is_rejected(monkeypatch):
@@ -206,3 +224,31 @@ def test_missing_session_is_rejected(service):
     execution, _ = service
     with pytest.raises(InterviewExecutionSessionNotFoundError):
         execution.get_session(999)
+
+
+def test_failed_answer_persistence_does_not_advance_progress(monkeypatch):
+    repository = FakeRepository(_blueprint())
+
+    def fail(*args, **kwargs):
+        raise SQLAlchemyError("write failed")
+
+    repository.create_answer_and_advance = fail
+    monkeypatch.setattr(
+        service_module,
+        "InterviewExecutionRepository",
+        lambda session: repository,
+    )
+    execution = InterviewExecutionService(object())
+    created = execution.create_session(4)
+    execution.start_session(created.id)
+
+    with pytest.raises(SQLAlchemyError):
+        execution.submit_answer(
+            created.id,
+            InterviewSessionAnswerCreate(answer="Answer"),
+        )
+
+    record = repository.sessions[created.id]
+    assert record.answered_questions == 0
+    assert record.answers == []
+    assert record.status == InterviewExecutionStatus.IN_PROGRESS
