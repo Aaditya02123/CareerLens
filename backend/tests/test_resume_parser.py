@@ -249,6 +249,35 @@ Example Project | Python / FastAPI | github.com/example/project
     )
 
 
+def test_standalone_project_urls_stay_with_the_active_project():
+    resume = """
+Aadityaraj Soni
+
+Projects
+NagarSetu — AI-Powered Civic Issue Reporting Platform | FastAPI, React
+github.com/example/NagarSetu
+Built a civic reporting service.
+Added image classification for routing.
+OIA Portal — Office of International Affairs | FastAPI, React | oia.example.com
+Delivered a student-facing institutional portal.
+Improved workflow reliability with focused tests.
+"""
+
+    result = parse_resume_text(resume)
+
+    assert len(result.project_entries) == 2
+    assert result.project_entries[0].url == "github.com/example/NagarSetu"
+    assert result.project_entries[0].description == [
+        "Built a civic reporting service.",
+        "Added image classification for routing.",
+    ]
+    assert result.project_entries[1].url == "oia.example.com"
+    assert result.project_entries[1].description == [
+        "Delivered a student-facing institutional portal.",
+        "Improved workflow reliability with focused tests.",
+    ]
+
+
 def test_legacy_fields_remain_available():
     result = parse_resume_text(DIGIVALET_RESUME)
 

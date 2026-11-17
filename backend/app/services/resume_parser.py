@@ -1092,6 +1092,12 @@ def _split_project_header(line: str) -> tuple[
 def _looks_like_project_header(line: str) -> bool:
     """Detect project title lines using strong metadata signals."""
     if _extract_url(line):
+        # A URL-only line is commonly extracted separately from the project
+        # heading by PDF readers. Keep it with the active project instead of
+        # creating a synthetic project entry for the link.
+        without_url = URL_PATTERN.sub("", line).strip(" |—–-")
+        if not without_url:
+            return False
         return True
 
     if PROJECT_SPLIT_PATTERN.search(line):
@@ -1145,6 +1151,15 @@ def _parse_projects(content: list[str]) -> list[ProjectEntry]:
     for line in lines:
         if not line:
             continue
+
+        extracted_url = _extract_url(line)
+        if current is not None and extracted_url:
+            without_url = URL_PATTERN.sub("", line).strip(" |—–-")
+            if not without_url:
+                if current.url is None:
+                    current.url = extracted_url
+                raw_lines.append(line)
+                continue
 
         if _looks_like_project_header(line):
             if current is not None:
