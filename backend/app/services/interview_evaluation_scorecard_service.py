@@ -156,8 +156,93 @@ def _unique_strings(items: list[str]) -> list[str]:
     return result
 
 
-def _response(evaluation: InterviewAnswerEvaluation) -> AnswerEvaluationResponse:
-    return AnswerEvaluationResponse.model_validate(evaluation)
+def _response(
+    evaluation: InterviewAnswerEvaluation,
+    *,
+    answer: Any | None = None,
+    question: Any | None = None,
+    parent_question: Any | None = None,
+    parent_answer: Any | None = None,
+) -> AnswerEvaluationResponse:
+    response = AnswerEvaluationResponse.model_validate(evaluation)
+    if answer is None or question is None:
+        return response
+
+    question_order = getattr(question, "question_order", None)
+    conversation_order = getattr(question, "conversation_order", None)
+    values = response.model_dump()
+    values.update(
+        {
+            "question": question.question,
+            "answer": answer.answer,
+            "question_category": question.question_category,
+            "difficulty": question.difficulty,
+            "question_order": question_order,
+            "conversation_order": (
+                float(conversation_order)
+                if conversation_order is not None
+                else None
+            ),
+            "is_follow_up": getattr(question, "is_follow_up", False),
+            "parent_question_id": getattr(question, "parent_question_id", None),
+            "parent_question": (
+                parent_question.question if parent_question is not None else None
+            ),
+            "parent_answer": (
+                parent_answer.answer if parent_answer is not None else None
+            ),
+        }
+    )
+    return AnswerEvaluationResponse(**values)
+
+
+def _response_for_session(
+    evaluation: InterviewAnswerEvaluation,
+    session_record: Any,
+) -> AnswerEvaluationResponse:
+    answer = next(
+        (item for item in session_record.answers if item.id == evaluation.answer_id),
+        None,
+    )
+    question = next(
+        (
+            item
+            for item in session_record.questions
+            if item.id == evaluation.question_id
+        ),
+        None,
+    )
+    if answer is None or question is None:
+        return _response(evaluation)
+
+    parent_question = None
+    parent_answer = None
+    if question.is_follow_up and question.parent_question_id is not None:
+        parent_question = next(
+            (
+                item
+                for item in session_record.questions
+                if item.id == question.parent_question_id
+            ),
+            None,
+        )
+        if parent_question is not None:
+            parent_answer = next(
+                (
+                    item
+                    for item in session_record.answers
+                    if item.session_question_id == parent_question.id
+                ),
+                None,
+            )
+
+    return _response(
+        evaluation,
+        answer=answer,
+        question=question,
+        parent_question=parent_question,
+        parent_answer=parent_answer,
+    )
 
 
 class InterviewEvaluationScorecardService:
@@ -269,7 +354,10 @@ class InterviewEvaluationScorecardService:
         return InterviewScorecardResponse(
             session_id=session_id,
             **data,
-            answer_evaluations=[_response(item) for item in evaluations],
+            answer_evaluations=[
+                _response_for_session(item, session_record)
+                for item in evaluations
+            ],
         )
 
     def evaluate_answer(
@@ -501,7 +589,13 @@ class InterviewEvaluationScorecardService:
             criterion_rows=criterion_rows,
             scorecard=scorecard_data,
         )
-        return _response(evaluation)
+        return _response(
+            evaluation,
+            answer=answer,
+            question=question,
+            parent_question=(parent_question if question.is_follow_up else None),
+            parent_answer=parent_answer,
+        )
 
     def get_answer_evaluation(
         self,
@@ -523,7 +617,7 @@ class InterviewEvaluationScorecardService:
             raise InterviewEvaluationError(
                 "The requested answer has not been evaluated yet."
             )
-        return _response(evaluation)
+        return _response_for_session(evaluation, session_record)
 
     def get_scorecard(self, session_id: int) -> InterviewScorecardResponse:
         session_record = self._get_session(session_id)
@@ -560,7 +654,10 @@ class InterviewEvaluationScorecardService:
                     CompetencyScoreResponse.model_validate(item)
                     for item in persisted_scorecard.competency_scores
                 ],
-                answer_evaluations=[_response(item) for item in evaluations],
+                answer_evaluations=[
+                    _response_for_session(item, session_record)
+                    for item in evaluations
+                ],
                 strengths=list(persisted_scorecard.strengths),
                 improvement_areas=list(persisted_scorecard.improvement_areas),
             )

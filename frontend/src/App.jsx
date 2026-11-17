@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import AppShell from './components/layout/AppShell'
 import Dashboard from './components/dashboard/Dashboard'
 import JobsWorkspace from './components/jobs/JobsWorkspace'
+import InterviewWorkspace from './components/interview/InterviewWorkspace'
 import ResumeWorkspace from './components/resume/ResumeWorkspace'
 import RoadmapWorkspace from './components/roadmap/RoadmapWorkspace'
 
@@ -57,6 +58,14 @@ function App() {
       }
     }
 
+    if (activeSection === 'Interviews') {
+      return {
+        title: 'Interviews',
+        description:
+          'Practice deliberately, review grounded feedback, and build stronger answers over time.',
+      }
+    }
+
     return {
       title: activeSection,
       description:
@@ -80,6 +89,8 @@ function App() {
         <JobsWorkspace />
       ) : activeSection === 'Roadmap' ? (
         <RoadmapWorkspace />
+      ) : activeSection === 'Interviews' ? (
+        <InterviewWorkspace />
       ) : (
         <section className="rounded-[var(--radius-lg)] border border-[var(--cl-border)] bg-[var(--cl-surface)] p-8 shadow-[var(--shadow-soft)]">
           <p className="text-sm font-medium uppercase tracking-[0.22em] text-[var(--cl-accent)]">

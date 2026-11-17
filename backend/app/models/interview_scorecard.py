@@ -62,6 +62,16 @@ class AnswerEvaluationResponse(BaseModel):
     session_id: int
     answer_id: int
     question_id: int
+    question: str = ""
+    answer: str = ""
+    question_category: str = ""
+    difficulty: str = ""
+    question_order: int | None = None
+    conversation_order: float | None = None
+    is_follow_up: bool = False
+    parent_question_id: int | None = None
+    parent_question: str | None = None
+    parent_answer: str | None = None
     competency_reference: str
     weighted_score: float = Field(ge=0.0, le=5.0)
     strengths: list[str] = Field(default_factory=list)
