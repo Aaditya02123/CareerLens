@@ -105,6 +105,25 @@ Record durable decisions here as the project evolves. Each entry should include 
   lose reproducibility; adding scoring to answer submission would make
   provider availability a prerequisite for completing an interview.
 
+## D-008: Constrain structured interview generation at the provider boundary
+
+- **Status:** Accepted
+- **Date:** 2026-11-17
+- **Context:** Local Ollama models sometimes returned prose instead of the
+  JSON required by blueprint and answer-evaluation schemas.
+- **Decision:** Keep the existing provider abstraction, add native Ollama JSON
+  schema requests for providers that support them, parse one unambiguous JSON
+  object centrally, and validate it with the existing Pydantic models. Allow
+  at most one corrective retry for output or grounding validation failures.
+  Provider connectivity and timeout errors propagate without retry, and no
+  invalid output is persisted.
+- **Consequences:** Compatible models receive stronger structural guidance and
+  malformed responses fail predictably. Model capability still matters; a
+  model that cannot satisfy the schema remains an explicit provider failure.
+- **Alternatives considered:** Relying only on prompt instructions was less
+  reliable. Adding a second LLM framework would increase dependencies and
+  obscure the replaceable provider boundary.
+
 ## Decision template
 
 ```markdown

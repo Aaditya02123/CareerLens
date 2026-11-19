@@ -13,6 +13,7 @@ from app.services.interview_evaluation_scorecard_service import (
 from app.services.interview_execution_service import (
     InterviewExecutionSessionNotFoundError,
 )
+from app.services.llm.ollama_generator import OllamaProviderUnavailableError
 
 
 def _criterion(criterion_id, name, weight):
@@ -121,6 +122,25 @@ class FakeProvider:
         self.calls += 1
         self.prompt = prompt
         return self.response
+
+
+class SequenceProvider:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = 0
+
+    def generate(self, system_prompt, prompt):
+        self.calls += 1
+        return self.responses.pop(0)
+
+
+class UnavailableProvider:
+    def __init__(self):
+        self.calls = 0
+
+    def generate(self, system_prompt, prompt):
+        self.calls += 1
+        raise OllamaProviderUnavailableError("Ollama is unavailable.")
 
 
 class FakeEvaluationRepository:
@@ -252,6 +272,53 @@ def test_invalid_provider_output_is_rejected_without_persistence(
             answer_id=101,
             provider=FakeProvider(response),
         )
+    assert repository.evaluations == []
+
+
+def test_invalid_provider_output_is_retried_once(evaluation_context):
+    _, _, repository = evaluation_context
+    provider = SequenceProvider(["not-json", _provider_payload()])
+
+    result = InterviewEvaluationScorecardService(object()).evaluate_answer(
+        session_id=7,
+        answer_id=101,
+        provider=provider,
+    )
+
+    assert result.answer_id == 101
+    assert provider.calls == 2
+    assert len(repository.evaluations) == 1
+
+
+def test_invalid_provider_output_is_not_retried_more_than_once(
+    evaluation_context,
+):
+    _, _, repository = evaluation_context
+    provider = SequenceProvider(["not-json", "still-not-json"])
+
+    with pytest.raises(InterviewEvaluationProviderError):
+        InterviewEvaluationScorecardService(object()).evaluate_answer(
+            session_id=7,
+            answer_id=101,
+            provider=provider,
+        )
+
+    assert provider.calls == 2
+    assert repository.evaluations == []
+
+
+def test_provider_unavailable_is_not_retried(evaluation_context):
+    _, _, repository = evaluation_context
+    provider = UnavailableProvider()
+
+    with pytest.raises(OllamaProviderUnavailableError):
+        InterviewEvaluationScorecardService(object()).evaluate_answer(
+            session_id=7,
+            answer_id=101,
+            provider=provider,
+        )
+
+    assert provider.calls == 1
     assert repository.evaluations == []
 
 

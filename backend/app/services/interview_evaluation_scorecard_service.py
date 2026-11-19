@@ -34,6 +34,10 @@ from app.services.interview_execution_service import (
 )
 from app.services.llm.generator import LLMGenerationProvider
 from app.services.llm.ollama_generator import get_ollama_generation_provider
+from app.services.llm.structured import (
+    generate_structured_text,
+    parse_json_object,
+)
 
 
 class InterviewAnswerNotFoundForEvaluationError(LookupError):
@@ -116,7 +120,9 @@ def build_answer_evaluation_prompt(
         "improvement_areas, actionable_feedback, and evaluation_status. Each "
         "criterion must be evaluated exactly once with a score from 0 to 5, "
         "a concise justification, answer excerpts only, and one improvement "
-        "suggestion. Do not expose chain-of-thought. Do not infer personality, "
+        "suggestion. Set evaluation_status to exactly 'complete'. Do not add "
+        "fields outside the requested schema. Do not expose chain-of-thought. "
+        "Do not infer personality, "
         "honesty, emotion, intelligence, employability, or hiring outcomes. "
         "Do not invent experience, projects, technologies, achievements, or "
         "qualifications. If evidence is insufficient, say so explicitly.\n\n"
@@ -125,20 +131,8 @@ def build_answer_evaluation_prompt(
 
 
 def _parse_provider_output(raw: str) -> ProviderAnswerEvaluation:
-    if not isinstance(raw, str):
-        raise InterviewEvaluationProviderError(
-            "The evaluation provider returned invalid structured data."
-        )
-    cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        cleaned = (
-            cleaned.removeprefix("```json")
-            .removeprefix("```")
-            .removesuffix("```")
-            .strip()
-        )
     try:
-        return ProviderAnswerEvaluation.model_validate_json(cleaned)
+        return ProviderAnswerEvaluation.model_validate(parse_json_object(raw))
     except (ValidationError, ValueError, TypeError) as error:
         raise InterviewEvaluationProviderError(
             "The evaluation provider returned invalid structured data."
@@ -243,6 +237,49 @@ def _response_for_session(
         parent_question=parent_question,
         parent_answer=parent_answer,
     )
+
+
+def _validate_provider_payload(
+    payload: ProviderAnswerEvaluation,
+    *,
+    answer: Any,
+    question: Any,
+    competency: Any,
+    criteria: list[Any],
+) -> dict[str, Any]:
+    """Validate provider identifiers, rubric coverage, and grounded evidence."""
+    if payload.answer_id != answer.id or payload.question_id != question.id:
+        raise InterviewEvaluationProviderError(
+            "The provider response identifiers do not match the answer."
+        )
+    if payload.competency_reference.casefold() != competency.name.casefold():
+        raise InterviewEvaluationProviderError(
+            "The provider referenced an unsupported competency."
+        )
+
+    criterion_map = {criterion.criterion_id: criterion for criterion in criteria}
+    returned_ids = [item.criterion_id for item in payload.criterion_evaluations]
+    if len(returned_ids) != len(set(returned_ids)):
+        raise InterviewEvaluationProviderError(
+            "The provider returned duplicate criterion evaluations."
+        )
+    if set(returned_ids) != set(criterion_map):
+        raise InterviewEvaluationProviderError(
+            "The provider did not evaluate exactly the configured criteria."
+        )
+
+    for item in payload.criterion_evaluations:
+        criterion = criterion_map[item.criterion_id]
+        if item.criterion_name.casefold() != criterion.name.casefold():
+            raise InterviewEvaluationProviderError(
+                "The provider returned an incorrect criterion name."
+            )
+        for excerpt in item.evidence_excerpts:
+            if excerpt not in answer.answer:
+                raise InterviewEvaluationProviderError(
+                    "An evidence excerpt was not found in the answer."
+                )
+    return criterion_map
 
 
 class InterviewEvaluationScorecardService:
@@ -496,48 +533,51 @@ class InterviewEvaluationScorecardService:
             rollback()
         active_provider = provider or get_ollama_generation_provider()
         provider_name = type(active_provider).__name__
-        raw = active_provider.generate(
-            system_prompt=(
-                "You are a careful CareerLens interview evaluator. "
-                "Return only the requested evidence-grounded JSON."
-            ),
-            prompt=prompt,
-        )
-        payload = _parse_provider_output(raw)
+        payload = None
+        criterion_map = None
+        for attempt in range(2):
+            attempt_prompt = prompt
+            if attempt:
+                attempt_prompt += (
+                    "\n\nYour previous response was rejected. Return one corrected "
+                    "JSON object only. Evaluate every configured criterion exactly "
+                    "once, use scores from 0 to 5, and include evidence excerpts "
+                    "that occur verbatim in the submitted answer."
+                )
+            raw = generate_structured_text(
+                active_provider,
+                system_prompt=(
+                    "You are a careful CareerLens interview evaluator. "
+                    "Return only the requested evidence-grounded JSON."
+                ),
+                prompt=attempt_prompt,
+                response_schema=ProviderAnswerEvaluation.model_json_schema(),
+            )
+            try:
+                candidate = _parse_provider_output(raw)
+                candidate_criteria = _validate_provider_payload(
+                    candidate,
+                    answer=answer,
+                    question=question,
+                    competency=competency,
+                    criteria=criteria,
+                )
+                payload = candidate
+                criterion_map = candidate_criteria
+                break
+            except InterviewEvaluationProviderError:
+                if attempt == 1:
+                    raise
 
-        if payload.answer_id != answer.id or payload.question_id != question.id:
+        if payload is None or criterion_map is None:
             raise InterviewEvaluationProviderError(
-                "The provider response identifiers do not match the answer."
-            )
-        if payload.competency_reference.casefold() != competency.name.casefold():
-            raise InterviewEvaluationProviderError(
-                "The provider referenced an unsupported competency."
-            )
-
-        criterion_map = {criterion.criterion_id: criterion for criterion in criteria}
-        returned_ids = [item.criterion_id for item in payload.criterion_evaluations]
-        if len(returned_ids) != len(set(returned_ids)):
-            raise InterviewEvaluationProviderError(
-                "The provider returned duplicate criterion evaluations."
-            )
-        if set(returned_ids) != set(criterion_map):
-            raise InterviewEvaluationProviderError(
-                "The provider did not evaluate exactly the configured criteria."
+                "The evaluation provider returned invalid structured data."
             )
 
         weighted_score = 0.0
         criterion_rows: list[dict] = []
         for item in payload.criterion_evaluations:
             criterion = criterion_map[item.criterion_id]
-            if item.criterion_name.casefold() != criterion.name.casefold():
-                raise InterviewEvaluationProviderError(
-                    "The provider returned an incorrect criterion name."
-                )
-            for excerpt in item.evidence_excerpts:
-                if excerpt not in answer.answer:
-                    raise InterviewEvaluationProviderError(
-                        "An evidence excerpt was not found in the answer."
-                    )
             weighted_score += item.score * criterion.weight_percent / 100
             criterion_rows.append(
                 {

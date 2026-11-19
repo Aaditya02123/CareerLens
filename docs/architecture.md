@@ -107,6 +107,17 @@ questions, or makes hiring decisions. Provider calls happen outside the
 persistence transaction, and retries return an existing evaluation protected
 by a database uniqueness constraint.
 
+### Structured Ollama generation
+
+Blueprint and answer-evaluation generation use the provider-neutral
+`LLMGenerationProvider` boundary. The local Ollama implementation additionally
+supports structured generation by sending the Pydantic JSON schema through
+Ollama's native `format` request field. Services keep Pydantic as the final
+validation authority and accept only one unambiguous JSON object, either plain
+JSON or a complete code fence. A single corrective retry is allowed after
+malformed, schema-invalid, or grounding-invalid output; provider availability
+and timeout failures are not retried. Invalid output is never persisted.
+
 ## Deferred decisions
 
 - Authentication provider and authorization model

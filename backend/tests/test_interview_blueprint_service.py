@@ -14,6 +14,7 @@ from app.services.interview_blueprint_service import (
     InterviewBlueprintProviderError,
     generate_interview_blueprint,
 )
+from app.services.llm.ollama_generator import OllamaProviderUnavailableError
 
 
 def _provider_payload(config: InterviewBlueprintConfig) -> str:
@@ -74,6 +75,25 @@ class FakeProvider:
 
     def generate(self, system_prompt: str, prompt: str) -> str:
         return self.response
+
+
+class SequenceProvider:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = 0
+
+    def generate(self, system_prompt: str, prompt: str) -> str:
+        self.calls += 1
+        return self.responses.pop(0)
+
+
+class UnavailableProvider:
+    def __init__(self):
+        self.calls = 0
+
+    def generate(self, system_prompt: str, prompt: str) -> str:
+        self.calls += 1
+        raise OllamaProviderUnavailableError("Ollama is unavailable.")
 
 
 class FakeRepository:
@@ -228,6 +248,57 @@ def test_malformed_provider_response_is_rejected(context):
             config=config,
             provider=FakeProvider("not json"),
         )
+
+
+def test_malformed_provider_response_is_retried_once(context):
+    config, repository = context
+    provider = SequenceProvider(["not json", _provider_payload(config)])
+
+    result = generate_interview_blueprint(
+        resume_id=1,
+        job_id=2,
+        session=object(),
+        config=config,
+        provider=provider,
+    )
+
+    assert result.id == 7
+    assert provider.calls == 2
+    assert repository.created is not None
+
+
+def test_malformed_provider_response_is_not_retried_more_than_once(context):
+    config, repository = context
+    provider = SequenceProvider(["not json", "still not json"])
+
+    with pytest.raises(InterviewBlueprintProviderError):
+        generate_interview_blueprint(
+            resume_id=1,
+            job_id=2,
+            session=object(),
+            config=config,
+            provider=provider,
+        )
+
+    assert provider.calls == 2
+    assert repository.created is None
+
+
+def test_provider_unavailable_is_not_retried(context):
+    config, repository = context
+    provider = UnavailableProvider()
+
+    with pytest.raises(OllamaProviderUnavailableError):
+        generate_interview_blueprint(
+            resume_id=1,
+            job_id=2,
+            session=object(),
+            config=config,
+            provider=provider,
+        )
+
+    assert provider.calls == 1
+    assert repository.created is None
 
 
 def test_missing_job_and_analysis_are_rejected(context, monkeypatch):

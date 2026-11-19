@@ -22,6 +22,8 @@ class ScorecardStatus(str, Enum):
 
 
 class ProviderCriterionEvaluation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     criterion_id: str = Field(min_length=1)
     criterion_name: str = Field(min_length=1)
     score: int = Field(ge=0, le=5)
@@ -31,6 +33,8 @@ class ProviderCriterionEvaluation(BaseModel):
 
 
 class ProviderAnswerEvaluation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     answer_id: int = Field(ge=1)
     question_id: int = Field(ge=1)
     competency_reference: str = Field(min_length=1)

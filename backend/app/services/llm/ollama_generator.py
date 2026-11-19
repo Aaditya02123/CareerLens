@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from urllib import error, request
+from typing import Any
 
 from app.services.llm.generator import LLMGenerationProvider
 
@@ -13,6 +14,14 @@ class OllamaConfigurationError(RuntimeError):
 
 class OllamaProviderError(RuntimeError):
     """Raised when Ollama returns an unusable response."""
+
+
+class OllamaProviderUnavailableError(OllamaProviderError):
+    """Raised when the Ollama service cannot be reached."""
+
+
+class OllamaTimeoutError(OllamaProviderError):
+    """Raised when an Ollama request exceeds its timeout."""
 
 
 class OllamaGenerationProvider:
@@ -38,17 +47,19 @@ class OllamaGenerationProvider:
 
         self.timeout_seconds = timeout_seconds
 
-    def generate(
+    def _request(
         self,
+        *,
         system_prompt: str,
         prompt: str,
+        response_format: str | dict[str, Any] | None = None,
     ) -> str:
         if not self.model.strip():
             raise OllamaConfigurationError(
                 "OLLAMA_MODEL must not be empty."
             )
 
-        payload = {
+        payload: dict[str, Any] = {
             "model": self.model,
             "messages": [
                 {
@@ -65,6 +76,8 @@ class OllamaGenerationProvider:
                 "temperature": 0,
             },
         }
+        if response_format is not None:
+            payload["format"] = response_format
 
         data = json.dumps(payload).encode("utf-8")
 
@@ -85,21 +98,22 @@ class OllamaGenerationProvider:
                 response_body = response.read().decode("utf-8")
 
         except error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")
             raise OllamaProviderError(
-                f"Ollama returned HTTP {exc.code}: {body}"
+                f"Ollama returned HTTP {exc.code}."
             ) from exc
 
         except error.URLError as exc:
-            raise OllamaProviderError(
+            if isinstance(exc.reason, TimeoutError):
+                raise OllamaTimeoutError(
+                    "The Ollama request timed out."
+                ) from exc
+            raise OllamaProviderUnavailableError(
                 "Could not connect to Ollama. "
                 "Make sure the Ollama service is running."
             ) from exc
 
         except TimeoutError as exc:
-            raise OllamaProviderError(
-                "Ollama request timed out."
-            ) from exc
+            raise OllamaTimeoutError("The Ollama request timed out.") from exc
 
         try:
             result = json.loads(response_body)
@@ -119,6 +133,28 @@ class OllamaGenerationProvider:
             )
 
         return content.strip()
+
+    def generate(
+        self,
+        system_prompt: str,
+        prompt: str,
+    ) -> str:
+        """Generate unconstrained text using Ollama."""
+        return self._request(system_prompt=system_prompt, prompt=prompt)
+
+    def generate_structured(
+        self,
+        *,
+        system_prompt: str,
+        prompt: str,
+        response_schema: dict[str, Any],
+    ) -> str:
+        """Generate JSON constrained by Ollama's native schema support."""
+        return self._request(
+            system_prompt=system_prompt,
+            prompt=prompt,
+            response_format=response_schema,
+        )
 
 
 def get_ollama_generation_provider() -> LLMGenerationProvider:

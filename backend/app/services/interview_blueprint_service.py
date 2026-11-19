@@ -26,6 +26,10 @@ from app.repositories.resume_analysis_repository import (
 from app.repositories.resume_repository import ResumeRepository
 from app.services.llm.generator import LLMGenerationProvider
 from app.services.llm.ollama_generator import get_ollama_generation_provider
+from app.services.llm.structured import (
+    generate_structured_text,
+    parse_json_object,
+)
 
 
 class BlueprintResumeNotFoundError(LookupError):
@@ -82,6 +86,10 @@ def build_interview_blueprint_prompt(
         "Use the exact requested configuration. Do not generate candidate "
         "scores or hiring predictions. Competency and rubric weights must "
         "each total 100. The question plan must fit the configured duration. "
+        "Use only the enum values supplied by the schema. Return integer "
+        "weights that total 100 for competencies and rubric criteria. "
+        "Return exactly the configured number of questions, with each "
+        "question's estimated_response_seconds between 15 and 600. "
         "Return these top-level fields: target_role, interview_type, "
         "difficulty, duration_minutes, question_count, competencies, "
         "questions, rubric. Each question must include a stable question_id, "
@@ -95,17 +103,10 @@ def build_interview_blueprint_prompt(
 
 
 def _parse_provider_payload(raw: str) -> InterviewBlueprintGenerationPayload:
-    cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        cleaned = (
-            cleaned.removeprefix("```json")
-            .removeprefix("```")
-            .removesuffix("```")
-            .strip()
-        )
-
     try:
-        return InterviewBlueprintGenerationPayload.model_validate_json(cleaned)
+        return InterviewBlueprintGenerationPayload.model_validate(
+            parse_json_object(raw)
+        )
     except (ValidationError, ValueError, TypeError) as error:
         raise InterviewBlueprintProviderError(
             "The interview blueprint provider returned invalid structured data."
@@ -254,25 +255,49 @@ def generate_interview_blueprint(
         analysis.categorized_skills
     )
 
-    raw = (provider or get_ollama_generation_provider()).generate(
-        system_prompt=(
-            "You are a careful CareerLens interview blueprint planner. "
-            "Return only the requested grounded JSON object."
-        ),
-        prompt=build_interview_blueprint_prompt(
-            config=active_config,
-            job=job,
-            structured_resume=structured_resume,
-            categorized_skills=categorized_skills,
-        ),
-    )
-    payload = _parse_provider_payload(raw)
-    _validate_grounding(
-        payload,
+    active_provider = provider or get_ollama_generation_provider()
+    base_prompt = build_interview_blueprint_prompt(
         config=active_config,
         job=job,
         structured_resume=structured_resume,
+        categorized_skills=categorized_skills,
     )
+    payload = None
+    for attempt in range(2):
+        prompt = base_prompt
+        if attempt:
+            prompt += (
+                "\n\nYour previous response was rejected. Return one corrected "
+                "JSON object only. Follow the requested schema, configuration, "
+                "weight totals, question count, and grounding rules exactly."
+            )
+        raw = generate_structured_text(
+            active_provider,
+            system_prompt=(
+                "You are a careful CareerLens interview blueprint planner. "
+                "Return only the requested grounded JSON object."
+            ),
+            prompt=prompt,
+            response_schema=InterviewBlueprintGenerationPayload.model_json_schema(),
+        )
+        try:
+            candidate = _parse_provider_payload(raw)
+            _validate_grounding(
+                candidate,
+                config=active_config,
+                job=job,
+                structured_resume=structured_resume,
+            )
+            payload = candidate
+            break
+        except InterviewBlueprintProviderError:
+            if attempt == 1:
+                raise
+
+    if payload is None:
+        raise InterviewBlueprintProviderError(
+            "The interview blueprint provider returned invalid structured data."
+        )
 
     repository = InterviewBlueprintRepository(session)
     blueprint = repository.create(

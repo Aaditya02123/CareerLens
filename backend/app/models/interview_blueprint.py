@@ -34,6 +34,8 @@ RubricCategory = Literal[
 
 
 class BlueprintCompetencyDraft(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(min_length=1)
     description: str = Field(min_length=1)
     category: str = Field(min_length=1)
@@ -44,6 +46,8 @@ class BlueprintCompetencyDraft(BaseModel):
 
 
 class BlueprintQuestionDraft(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     question_id: str = Field(min_length=1)
     question: str = Field(min_length=1)
     category: QuestionCategory
@@ -60,6 +64,8 @@ class BlueprintQuestionDraft(BaseModel):
 
 
 class BlueprintRubricCriterionDraft(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     criterion_id: str = Field(min_length=1)
     name: str = Field(min_length=1)
     category: RubricCategory
@@ -79,6 +85,8 @@ class BlueprintRubricCriterionDraft(BaseModel):
 
 class InterviewBlueprintGenerationPayload(BaseModel):
     """Strict provider output used before a blueprint is persisted."""
+
+    model_config = ConfigDict(extra="forbid")
 
     target_role: str = Field(min_length=1)
     interview_type: InterviewType
