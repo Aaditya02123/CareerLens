@@ -7,11 +7,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user, require_owned_resume, require_owned_roadmap_item
 from app.models.learning_roadmap import (
     JobLearningRoadmapResponse,
     LearningRoadmapProgressResponse,
     LearningRoadmapProgressUpdate,
 )
+from app.models.user import User
 from app.repositories.learning_roadmap_repository import (
     LearningRoadmapRepository,
 )
@@ -33,9 +35,11 @@ def get_learning_roadmap(
     resume_id: int,
     job_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> JobLearningRoadmapResponse:
     """Return a deterministic learning roadmap."""
     try:
+        require_owned_resume(resume_id, current_user, db)
         return build_learning_roadmap(
             resume_id=resume_id,
             job_id=job_id,
@@ -72,11 +76,13 @@ def update_learning_roadmap_item_progress(
     item_id: int,
     payload: LearningRoadmapProgressUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> LearningRoadmapProgressResponse:
     """Update only the progress status of a roadmap item."""
     repository = LearningRoadmapRepository(db)
 
     try:
+        require_owned_roadmap_item(item_id, current_user, db)
         item = repository.get_item_by_id(item_id)
 
         if item is None:

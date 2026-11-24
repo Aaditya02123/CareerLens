@@ -10,9 +10,13 @@ class UserService:
     def __init__(self, session: Session) -> None:
         self.repository = UserRepository(session)
 
-    def create_user(self, email: str, name: str) -> User:
+    def create_user(self, email: str, name: str, password_hash: str) -> User:
         """Create a user through the repository."""
-        return self.repository.create(email=email, name=name)
+        return self.repository.create(
+            email=email,
+            name=name,
+            password_hash=password_hash,
+        )
 
     def get_user_by_id(self, user_id: int) -> User | None:
         """Return a user by ID, if one exists."""

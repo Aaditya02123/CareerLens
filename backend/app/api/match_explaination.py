@@ -3,8 +3,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user, require_owned_resume
 from app.models.job_explanation import AIJobExplanationResponse
 from app.models.match_explaination import MatchExplanationResponse
+from app.models.user import User
 from app.services.hybrid_matching_service import (
     JobNotFoundError,
     ResumeAnalysisNotFoundError,
@@ -26,8 +28,10 @@ def get_match_explanation(
     resume_id: int,
     job_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> MatchExplanationResponse:
     try:
+        require_owned_resume(resume_id, current_user, db)
         return explain_match(
             resume_id=resume_id,
             job_id=job_id,
@@ -58,8 +62,10 @@ def get_ai_job_explanation(
     resume_id: int,
     job_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> AIJobExplanationResponse:
     try:
+        require_owned_resume(resume_id, current_user, db)
         result = generate_job_explanation(
             resume_id=resume_id,
             job_id=job_id,

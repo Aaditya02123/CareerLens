@@ -3,10 +3,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user, require_owned_execution_session
 from app.models.interview_scorecard import (
     AnswerEvaluationResponse,
     InterviewScorecardResponse,
 )
+from app.models.user import User
 from app.services.interview_evaluation_scorecard_service import (
     InterviewAnswerNotFoundForEvaluationError,
     InterviewEvaluationError,
@@ -40,8 +42,10 @@ def evaluate_interview_answer(
     session_id: int,
     answer_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> AnswerEvaluationResponse:
     try:
+        require_owned_execution_session(session_id, current_user, db)
         return InterviewEvaluationScorecardService(db).evaluate_answer(
             session_id=session_id,
             answer_id=answer_id,
@@ -79,8 +83,10 @@ def get_interview_answer_evaluation(
     session_id: int,
     answer_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> AnswerEvaluationResponse:
     try:
+        require_owned_execution_session(session_id, current_user, db)
         return InterviewEvaluationScorecardService(db).get_answer_evaluation(
             session_id=session_id,
             answer_id=answer_id,
@@ -106,8 +112,10 @@ def get_interview_answer_evaluation(
 def get_interview_scorecard(
     session_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> InterviewScorecardResponse:
     try:
+        require_owned_execution_session(session_id, current_user, db)
         return InterviewEvaluationScorecardService(db).get_scorecard(session_id)
     except InterviewExecutionSessionNotFoundError as error:
         raise _not_found(error) from error

@@ -3,6 +3,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import (
+    get_current_user,
+    require_current_user_id,
+    require_owned_resume_filename,
+)
 from app.models.resume import (
     ResumeAnalysisResponse,
     ResumeResponse,
@@ -10,6 +15,7 @@ from app.models.resume import (
     ResumeUploadResponse,
     StructuredResume,
 )
+from app.models.user import User
 from app.models.skills import SkillExtractionResult
 from app.services.resume_analysis_service import (
     ResumeRecordNotFoundError,
@@ -32,15 +38,15 @@ router = APIRouter()
 
 @router.post("/resume", response_model=ResumeUploadResponse)
 async def upload_resume(
-    user_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ResumeUploadResponse:
     """Receive, store, and register a resume for a user."""
     try:
         return await store_resume(
             upload_file=file,
-            user_id=user_id,
+            user_id=current_user.id,
             session=db,
         )
     except UserNotFoundError as error:
@@ -69,9 +75,11 @@ async def upload_resume(
 def get_user_resumes(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> list[ResumeResponse]:
     """Return all resumes belonging to a user."""
     try:
+        require_current_user_id(user_id, current_user)
         resumes = get_resumes_by_user_id(
             user_id=user_id,
             session=db,
@@ -92,9 +100,14 @@ def get_user_resumes(
     "/resume/{stored_filename}/text",
     response_model=ResumeTextResponse,
 )
-def read_resume_text(stored_filename: str) -> ResumeTextResponse:
+def read_resume_text(
+    stored_filename: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ResumeTextResponse:
     """Extract raw text from an already-stored resume."""
     try:
+        require_owned_resume_filename(stored_filename, current_user, db)
         return extract_resume_text(stored_filename)
     except ResumeNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
@@ -108,9 +121,14 @@ def read_resume_text(stored_filename: str) -> ResumeTextResponse:
     "/resume/{stored_filename}/parsed",
     response_model=StructuredResume,
 )
-def read_parsed_resume(stored_filename: str) -> StructuredResume:
+def read_parsed_resume(
+    stored_filename: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> StructuredResume:
     """Parse an already-stored resume into structured fields."""
     try:
+        require_owned_resume_filename(stored_filename, current_user, db)
         extracted_resume = extract_resume_text(stored_filename)
         return parse_resume_text(extracted_resume.text)
     except ResumeNotFoundError as error:
@@ -125,9 +143,14 @@ def read_parsed_resume(stored_filename: str) -> StructuredResume:
     "/resume/{stored_filename}/skills",
     response_model=SkillExtractionResult,
 )
-def read_resume_skills(stored_filename: str) -> SkillExtractionResult:
+def read_resume_skills(
+    stored_filename: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> SkillExtractionResult:
     """Extract canonical skills from an already-stored resume."""
     try:
+        require_owned_resume_filename(stored_filename, current_user, db)
         extracted_resume = extract_resume_text(stored_filename)
         return extract_skills(extracted_resume.text)
     except ResumeNotFoundError as error:
@@ -145,9 +168,11 @@ def read_resume_skills(stored_filename: str) -> SkillExtractionResult:
 def read_resume_analysis(
     stored_filename: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ResumeAnalysisResponse:
     """Analyze and persist the latest analysis for a stored resume."""
     try:
+        require_owned_resume_filename(stored_filename, current_user, db)
         return analyze_resume(
             stored_filename=stored_filename,
             session=db,

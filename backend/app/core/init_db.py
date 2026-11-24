@@ -1,4 +1,4 @@
-from app.core.database import Base, engine
+from app.core.database import Base
 from app.models.application import Application  # noqa: F401
 from app.models.interview_session import (  # noqa: F401
     InterviewAnswer,
@@ -36,5 +36,5 @@ from app.models.user import User  # noqa: F401
 
 
 def init_db() -> None:
-    """Create database tables for all registered SQLAlchemy models."""
-    Base.metadata.create_all(bind=engine)
+    """Deprecated: use Alembic migrations to manage the schema."""
+    raise RuntimeError("Use `alembic upgrade head` to initialize the database.")

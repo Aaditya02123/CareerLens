@@ -22,6 +22,7 @@ from app.repositories.user_repository import UserRepository
 STORAGE_DIRECTORY = (
     Path(__file__).resolve().parents[2] / "storage" / "resumes"
 )
+MAX_RESUME_BYTES = 10 * 1024 * 1024
 
 ALLOWED_CONTENT_TYPES = {
     ".pdf": "application/pdf",
@@ -83,19 +84,43 @@ async def store_resume(
     stored_filename = f"{uuid4().hex}{file_extension}"
     destination = STORAGE_DIRECTORY / stored_filename
     file_stored = False
+    bytes_written = 0
+    first_chunk = b""
 
     try:
         with destination.open("wb") as output_file:
             while chunk := await upload_file.read(1024 * 1024):
+                if not first_chunk:
+                    first_chunk = chunk
+                bytes_written += len(chunk)
+                if bytes_written > MAX_RESUME_BYTES:
+                    raise UnsupportedResumeTypeError(
+                        "Resume files must not exceed 10 MB."
+                    )
                 output_file.write(chunk)
 
         file_stored = True
+    except Exception:
+        try:
+            destination.unlink()
+        except OSError:
+            pass
+        raise
     finally:
         await upload_file.close()
 
+    if not _matches_file_signature(file_extension, first_chunk):
+        try:
+            destination.unlink()
+        except OSError:
+            pass
+        raise UnsupportedResumeTypeError(
+            "The uploaded file contents do not match its declared type."
+        )
+
     try:
         resume_repository = ResumeRepository(session)
-        resume_repository.create(
+        resume = resume_repository.create(
             user_id=user_id,
             original_filename=original_filename,
             stored_filename=stored_filename,
@@ -111,10 +136,19 @@ async def store_resume(
         raise
 
     return ResumeUploadResponse(
+        id=resume.id,
         original_filename=original_filename,
         content_type=content_type,
         stored_filename=stored_filename,
     )
+
+
+def _matches_file_signature(file_extension: str, content: bytes) -> bool:
+    if file_extension == ".pdf":
+        return content.startswith(b"%PDF-")
+    if file_extension == ".docx":
+        return content.startswith(b"PK\\x03\\x04")
+    return False
 
 
 def get_resumes_by_user_id(

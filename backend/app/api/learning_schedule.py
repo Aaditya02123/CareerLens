@@ -5,7 +5,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user, require_owned_resume
 from app.models.learning_schedule import LearningScheduleResponse
+from app.models.user import User
 from app.services.hybrid_matching_service import (
     JobNotFoundError,
     ResumeAnalysisNotFoundError,
@@ -29,9 +31,11 @@ def read_learning_schedule(
     resume_id: int,
     job_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> LearningScheduleResponse:
     """Return an indicative schedule projection for a roadmap."""
     try:
+        require_owned_resume(resume_id, current_user, db)
         return get_learning_schedule(
             resume_id=resume_id,
             job_id=job_id,

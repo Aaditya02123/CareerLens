@@ -3,11 +3,13 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user, require_current_user_id
 from app.models.application import (
     ApplicationCreate,
     ApplicationResponse,
     ApplicationStatusUpdate,
 )
+from app.models.user import User
 from app.services.application_service import (
     ApplicationNotFoundError,
     ApplicationService,
@@ -27,8 +29,10 @@ router = APIRouter()
 def create_application(
     application_data: ApplicationCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ApplicationResponse:
     """Create a tracked job application."""
+    require_current_user_id(application_data.user_id, current_user)
     service = ApplicationService(db)
 
     try:
@@ -69,12 +73,14 @@ def create_application(
 def get_application(
     application_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ApplicationResponse:
     """Retrieve a tracked application."""
     service = ApplicationService(db)
 
     try:
         application = service.get_application(application_id)
+        require_current_user_id(application.user_id, current_user)
     except ApplicationNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -96,8 +102,10 @@ def get_application(
 def list_user_applications(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> list[ApplicationResponse]:
     """List all applications tracked by a user."""
+    require_current_user_id(user_id, current_user)
     service = ApplicationService(db)
 
     try:
@@ -127,11 +135,14 @@ def update_application_status(
     application_id: int,
     status_data: ApplicationStatusUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ApplicationResponse:
     """Update the status of a tracked application."""
     service = ApplicationService(db)
 
     try:
+        existing = service.get_application(application_id)
+        require_current_user_id(existing.user_id, current_user)
         application = service.update_application_status(
             application_id=application_id,
             new_status=status_data.status,

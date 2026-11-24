@@ -3,7 +3,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user, require_owned_resume
 from app.models.interview_preparation import InterviewPreparationResponse
+from app.models.user import User
 from app.services.hybrid_matching_service import (
     JobNotFoundError,
     ResumeAnalysisNotFoundError,
@@ -23,9 +25,11 @@ def get_interview_preparation(
     resume_id: int,
     job_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> InterviewPreparationResponse:
     """Return deterministic interview preparation questions."""
     try:
+        require_owned_resume(resume_id, current_user, db)
         return build_interview_preparation(
             resume_id=resume_id,
             job_id=job_id,

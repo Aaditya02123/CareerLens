@@ -3,7 +3,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user, require_owned_resume
 from app.models.hybrid_matching import HybridMatchResult
+from app.models.user import User
 from app.services.hybrid_matching_service import (
     JobNotFoundError,
     ResumeAnalysisNotFoundError,
@@ -21,9 +23,11 @@ def hybrid_match_resume_to_job(
     resume_id: int,
     job_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> HybridMatchResult:
     """Calculate a hybrid resume-to-job match."""
     try:
+        require_owned_resume(resume_id, current_user, db)
         return calculate_hybrid_match(
             resume_id=resume_id,
             job_id=job_id,

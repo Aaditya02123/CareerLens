@@ -3,10 +3,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user, require_current_user_id
 from app.models.learning_preferences import (
     LearningPreferencesResponse,
     LearningPreferencesUpsert,
 )
+from app.models.user import User
 from app.services.learning_preferences_service import (
     LearningPreferencesUserNotFoundError,
     get_learning_preferences,
@@ -24,9 +26,11 @@ router = APIRouter()
 def read_learning_preferences(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> LearningPreferencesResponse:
     """Return saved preferences or defaults for a user."""
     try:
+        require_current_user_id(user_id, current_user)
         return get_learning_preferences(
             user_id=user_id,
             session=db,
@@ -49,9 +53,11 @@ def upsert_learning_preferences(
     user_id: int,
     payload: LearningPreferencesUpsert,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> LearningPreferencesResponse:
     """Create or replace a user's learning preferences."""
     try:
+        require_current_user_id(user_id, current_user)
         return save_learning_preferences(
             user_id=user_id,
             payload=payload,

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import the database initialization module so that all SQLAlchemy models
@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import app.core.init_db  # noqa: F401
 
 from app.api.applications import router as applications_router
+from app.api.auth import router as auth_router
 from app.api.health import router as health_router
 from app.api.hybrid_matching import router as hybrid_matching_router
 from app.api.interview_evaluation import (
@@ -56,6 +57,7 @@ from app.api.semantic_matching import (
 )
 from app.api.skill_gap import router as skill_gap_router
 from app.api.users import router as users_router
+from app.core.security import get_current_user
 
 
 app = FastAPI(title="CareerLens API")
@@ -73,27 +75,29 @@ app.add_middleware(
 
 
 app.include_router(health_router)
-app.include_router(profile_router)
-app.include_router(resume_router)
-app.include_router(users_router)
-app.include_router(jobs_router)
-app.include_router(learning_preferences_router)
-app.include_router(matching_router)
-app.include_router(semantic_matching_router)
-app.include_router(hybrid_matching_router)
-app.include_router(job_ranking_router)
-app.include_router(match_explanation_router)
-app.include_router(job_recommendation_router)
-app.include_router(learning_roadmap_router)
-app.include_router(learning_schedule_router)
-app.include_router(skill_gap_router)
-app.include_router(learning_resources_router)
-app.include_router(applications_router)
-app.include_router(interview_preparation_router)
-app.include_router(interview_sessions_router)
-app.include_router(interview_evaluation_router)
-app.include_router(interview_report_router)
-app.include_router(interview_blueprints_router)
-app.include_router(interview_execution_router)
-app.include_router(adaptive_interview_router)
-app.include_router(interview_evaluation_scorecard_router)
+app.include_router(auth_router)
+_authenticated = [Depends(get_current_user)]
+app.include_router(profile_router, dependencies=_authenticated)
+app.include_router(resume_router, dependencies=_authenticated)
+app.include_router(users_router, dependencies=_authenticated)
+app.include_router(jobs_router, dependencies=_authenticated)
+app.include_router(learning_preferences_router, dependencies=_authenticated)
+app.include_router(matching_router, dependencies=_authenticated)
+app.include_router(semantic_matching_router, dependencies=_authenticated)
+app.include_router(hybrid_matching_router, dependencies=_authenticated)
+app.include_router(job_ranking_router, dependencies=_authenticated)
+app.include_router(match_explanation_router, dependencies=_authenticated)
+app.include_router(job_recommendation_router, dependencies=_authenticated)
+app.include_router(learning_roadmap_router, dependencies=_authenticated)
+app.include_router(learning_schedule_router, dependencies=_authenticated)
+app.include_router(skill_gap_router, dependencies=_authenticated)
+app.include_router(learning_resources_router, dependencies=_authenticated)
+app.include_router(applications_router, dependencies=_authenticated)
+app.include_router(interview_preparation_router, dependencies=_authenticated)
+app.include_router(interview_sessions_router, dependencies=_authenticated)
+app.include_router(interview_evaluation_router, dependencies=_authenticated)
+app.include_router(interview_report_router, dependencies=_authenticated)
+app.include_router(interview_blueprints_router, dependencies=_authenticated)
+app.include_router(interview_execution_router, dependencies=_authenticated)
+app.include_router(adaptive_interview_router, dependencies=_authenticated)
+app.include_router(interview_evaluation_scorecard_router, dependencies=_authenticated)

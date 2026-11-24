@@ -3,10 +3,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user, require_owned_blueprint, require_owned_resume
 from app.models.interview_blueprint import (
     InterviewBlueprintConfig,
     InterviewBlueprintResponse,
 )
+from app.models.user import User
 from app.services.interview_blueprint_service import (
     BlueprintJobDescriptionError,
     BlueprintJobNotFoundError,
@@ -38,8 +40,10 @@ def create_interview_blueprint(
     job_id: int,
     config: InterviewBlueprintConfig | None = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> InterviewBlueprintResponse:
     try:
+        require_owned_resume(resume_id, current_user, db)
         return generate_interview_blueprint(
             resume_id=resume_id,
             job_id=job_id,
@@ -74,8 +78,10 @@ def create_interview_blueprint(
 def retrieve_interview_blueprint(
     blueprint_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> InterviewBlueprintResponse:
     try:
+        require_owned_blueprint(blueprint_id, current_user, db)
         return get_interview_blueprint(blueprint_id, db)
     except InterviewBlueprintNotFoundError as error:
         raise HTTPException(404, str(error)) from error
@@ -96,8 +102,10 @@ def list_resume_interview_blueprints(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> list[InterviewBlueprintResponse]:
     try:
+        require_owned_resume(resume_id, current_user, db)
         return list_interview_blueprints(
             resume_id,
             db,
@@ -123,8 +131,10 @@ def list_resume_interview_blueprints(
 def remove_interview_blueprint(
     blueprint_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     try:
+        require_owned_blueprint(blueprint_id, current_user, db)
         delete_interview_blueprint(blueprint_id, db)
     except InterviewBlueprintNotFoundError as error:
         raise HTTPException(404, str(error)) from error

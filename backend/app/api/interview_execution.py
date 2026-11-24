@@ -3,10 +3,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user, require_owned_blueprint, require_owned_execution_session
 from app.models.interview_execution import (
     InterviewExecutionSessionResponse,
     InterviewSessionAnswerCreate,
 )
+from app.models.user import User
 from app.services.interview_execution_service import (
     EmptyInterviewBlueprintError,
     InterviewExecutionAnswerError,
@@ -28,8 +30,10 @@ router = APIRouter(tags=["Interview Sessions"])
 def create_interview_execution_session(
     blueprint_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> InterviewExecutionSessionResponse:
     try:
+        require_owned_blueprint(blueprint_id, current_user, db)
         return InterviewExecutionService(db).create_session(blueprint_id)
     except InterviewExecutionBlueprintNotFoundError as error:
         raise HTTPException(404, str(error)) from error
@@ -49,8 +53,10 @@ def create_interview_execution_session(
 def get_interview_execution_session(
     session_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> InterviewExecutionSessionResponse:
     try:
+        require_owned_execution_session(session_id, current_user, db)
         return InterviewExecutionService(db).get_session(session_id)
     except InterviewExecutionSessionNotFoundError as error:
         raise HTTPException(404, str(error)) from error
@@ -68,8 +74,10 @@ def get_interview_execution_session(
 def start_interview_execution_session(
     session_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> InterviewExecutionSessionResponse:
     try:
+        require_owned_execution_session(session_id, current_user, db)
         return InterviewExecutionService(db).start_session(session_id)
     except InterviewExecutionSessionNotFoundError as error:
         raise HTTPException(404, str(error)) from error
@@ -91,8 +99,10 @@ def submit_interview_execution_answer(
     session_id: int,
     answer_data: InterviewSessionAnswerCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> InterviewExecutionSessionResponse:
     try:
+        require_owned_execution_session(session_id, current_user, db)
         return InterviewExecutionService(db).submit_answer(
             session_id=session_id,
             answer_data=answer_data,

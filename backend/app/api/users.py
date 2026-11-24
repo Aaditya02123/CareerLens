@@ -3,7 +3,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.user import UserCreate, UserResponse
+from app.core.security import get_current_user, hash_password, require_current_user_id
+from app.models.user import User, UserCreate, UserResponse
 from app.services.user_service import UserService
 
 router = APIRouter()
@@ -25,6 +26,7 @@ def create_user(
         user = user_service.create_user(
             email=user_data.email,
             name=user_data.name,
+            password_hash=hash_password(user_data.password),
         )
     except IntegrityError as error:
         raise HTTPException(
@@ -43,8 +45,10 @@ def create_user(
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> UserResponse:
     """Retrieve a user by ID."""
+    require_current_user_id(user_id, current_user)
     user_service = UserService(db)
     user = user_service.get_user_by_id(user_id)
 

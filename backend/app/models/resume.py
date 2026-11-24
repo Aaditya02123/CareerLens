@@ -68,6 +68,7 @@ class Resume(Base):
 
 
 class ResumeUploadResponse(BaseModel):
+    id: int
     original_filename: str
     content_type: str
     stored_filename: str
