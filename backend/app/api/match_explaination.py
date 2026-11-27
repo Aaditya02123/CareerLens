@@ -37,6 +37,8 @@ def get_match_explanation(
             job_id=job_id,
             session=db,
         )
+    except HTTPException:
+        raise
     except ResumeAnalysisNotFoundError as error:
         raise HTTPException(
             status_code=404,
@@ -76,6 +78,8 @@ def get_ai_job_explanation(
             **result.model_dump()
         )
 
+    except HTTPException:
+        raise
     except ResumeAnalysisNotFoundError as error:
         raise HTTPException(
             status_code=404,

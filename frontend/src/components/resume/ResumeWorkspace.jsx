@@ -4,6 +4,7 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { useAuth } from '../../context/AuthContext'
 import {
   CAREERLENS_DEV_USER_ID,
   fetchResumeAnalysis,
@@ -287,6 +288,9 @@ function ResumeWorkspace() {
     skillGroups,
   ])
 
+  const { user } = useAuth()
+  const activeUserId = user?.id || CAREERLENS_DEV_USER_ID
+
   const loadResumeWorkspace =
     useCallback(async () => {
       setIsLoading(true)
@@ -296,7 +300,7 @@ function ResumeWorkspace() {
       try {
         const userResumes =
           await fetchUserResumes(
-            CAREERLENS_DEV_USER_ID,
+            activeUserId,
           )
 
         const orderedResumes =
@@ -341,7 +345,7 @@ function ResumeWorkspace() {
       } finally {
         setIsLoading(false)
       }
-    }, [])
+    }, [activeUserId])
 
   useEffect(() => {
     loadResumeWorkspace()
@@ -384,7 +388,7 @@ function ResumeWorkspace() {
     try {
       await uploadResume(
         selectedFile,
-        CAREERLENS_DEV_USER_ID,
+        activeUserId,
       )
 
       setSelectedFile(null)
@@ -482,7 +486,7 @@ function ResumeWorkspace() {
   return (
     <div className="space-y-8">
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="relative overflow-hidden rounded-[var(--radius-lg)] border border-[var(--cl-border-strong)] bg-[linear-gradient(145deg,var(--cl-surface),#0f1722)] p-6 shadow-[var(--shadow-soft)] sm:p-8">
+        <div className="relative overflow-hidden rounded-[var(--radius-lg)] border border-[var(--cl-border-strong)] bg-[linear-gradient(145deg,var(--cl-surface),var(--cl-surface-muted))] p-6 shadow-[var(--shadow-soft)] sm:p-8">
           <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full border border-[var(--cl-border)] opacity-40" />
 
           <div className="relative">

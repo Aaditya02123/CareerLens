@@ -3,13 +3,13 @@ const STATUS_CONTENT = {
     label: 'Using defaults',
     description:
       'Save your preferences to compare this projection with your own availability.',
-    className: 'border-white/10 bg-white/[0.025] text-white/65',
+    className: 'border-[var(--cl-border)] bg-[var(--cl-surface-muted)] text-[var(--cl-text-soft)]',
   },
   no_estimate: {
     label: 'Estimate unavailable',
     description:
       'Some remaining skills do not have a reliable effort estimate yet.',
-    className: 'border-white/10 bg-white/[0.025] text-white/65',
+    className: 'border-[var(--cl-border)] bg-[var(--cl-surface-muted)] text-[var(--cl-text-soft)]',
   },
   completed: {
     label: 'Roadmap complete',
@@ -51,11 +51,11 @@ function formatDate(value) {
 
 function SummaryMetric({ label, value }) {
   return (
-    <div className="rounded-xl border border-white/8 bg-white/[0.025] p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">
+    <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--cl-faint)]">
         {label}
       </p>
-      <p className="mt-2 text-lg font-medium text-white/85">{value}</p>
+      <p className="mt-2 text-lg font-medium text-[var(--cl-text)]">{value}</p>
     </div>
   )
 }
@@ -69,21 +69,21 @@ export default function RoadmapScheduleSummary({
   if (loading) {
     return (
       <section
-        className="mb-5 rounded-2xl border border-white/8 bg-[#111111] p-5"
+        className="mb-5 rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-5"
         aria-labelledby="roadmap-schedule-heading"
         aria-busy="true"
       >
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
           Personalized schedule
         </p>
         <h3
           id="roadmap-schedule-heading"
-          className="mt-2 text-lg font-medium text-white/90"
+          className="mt-2 text-lg font-medium text-[var(--cl-text)]"
         >
           Loading schedule
         </h3>
         <div
-          className="mt-5 h-24 animate-pulse rounded-xl bg-white/[0.04]"
+          className="mt-5 h-24 animate-pulse rounded-xl bg-[var(--cl-surface-soft)]"
           aria-label="Loading roadmap schedule"
         />
       </section>
@@ -126,7 +126,7 @@ export default function RoadmapScheduleSummary({
     label: 'Status unavailable',
     description:
       'The backend returned an unrecognized schedule status. Review the roadmap estimates directly.',
-    className: 'border-white/10 bg-white/[0.025] text-white/65',
+    className: 'border-[var(--cl-border)] bg-[var(--cl-surface-muted)] text-[var(--cl-text-soft)]',
   }
   const hasRemainingEffort =
     Number.isFinite(schedule.remaining_minimum_hours) &&
@@ -136,17 +136,17 @@ export default function RoadmapScheduleSummary({
 
   return (
     <section
-      className="mb-5 rounded-2xl border border-white/8 bg-[#111111] p-5"
+      className="mb-5 rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-5"
       aria-labelledby="roadmap-schedule-heading"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
             Personalized schedule
           </p>
           <h3
             id="roadmap-schedule-heading"
-            className="mt-2 text-lg font-medium text-white/90"
+            className="mt-2 text-lg font-medium text-[var(--cl-text)]"
           >
             Your learning projection
           </h3>
@@ -159,7 +159,7 @@ export default function RoadmapScheduleSummary({
         </span>
       </div>
 
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-white/50">
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--cl-muted)]">
         {status.description}
       </p>
 
@@ -190,7 +190,7 @@ export default function RoadmapScheduleSummary({
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-white/40">
+      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[var(--cl-muted)]">
         <span>
           Preferences: {schedule.configured ? 'saved' : 'default values'}
         </span>
@@ -199,7 +199,7 @@ export default function RoadmapScheduleSummary({
         </span>
       </div>
 
-      <p className="mt-4 text-xs leading-5 text-white/35">
+      <p className="mt-4 text-xs leading-5 text-[var(--cl-faint)]">
         This is an indicative projection based on available weekly hours,
         not a guaranteed completion time.
       </p>

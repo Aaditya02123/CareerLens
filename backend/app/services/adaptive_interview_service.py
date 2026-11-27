@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from pydantic import ValidationError
@@ -29,6 +30,16 @@ from app.services.interview_execution_service import (
 )
 from app.services.llm.generator import LLMGenerationProvider
 from app.services.llm.ollama_generator import get_ollama_generation_provider
+from app.services.llm.observability import (
+    GenerationFailureCategory,
+    classify_generation_error,
+    elapsed_ms,
+    generation_context,
+    log_generation_event,
+    new_correlation_id,
+    provider_status_code,
+)
+from app.services.llm.structured import parse_and_validate_model
 
 
 MAX_FOLLOW_UPS_PER_QUESTION = 1
@@ -41,6 +52,17 @@ class AdaptiveQuestionError(ValueError):
 
 class AdaptiveProviderError(RuntimeError):
     """Raised when structured adaptive output is unusable."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_category: GenerationFailureCategory = (
+            GenerationFailureCategory.UNKNOWN_GENERATION_ERROR
+        ),
+    ) -> None:
+        super().__init__(message)
+        self.failure_category = failure_category
 
 
 def build_adaptive_decision_prompt(
@@ -86,21 +108,27 @@ def build_adaptive_decision_prompt(
     )
 
 
-def _parse_payload(raw: str) -> AdaptiveDecisionPayload:
-    cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        cleaned = (
-            cleaned.removeprefix("```json")
-            .removeprefix("```")
-            .removesuffix("```")
-            .strip()
-        )
+def _parse_payload_with_timings(
+    raw: str,
+) -> tuple[AdaptiveDecisionPayload, float, float]:
     try:
-        return AdaptiveDecisionPayload.model_validate_json(cleaned)
-    except (ValidationError, ValueError, TypeError) as error:
+        result = parse_and_validate_model(raw, AdaptiveDecisionPayload)
+    except ValidationError as error:
         raise AdaptiveProviderError(
-            "The adaptive interviewer returned invalid structured data."
+            "The adaptive interviewer returned schema-invalid data.",
+            failure_category=GenerationFailureCategory.SCHEMA_VALIDATION_FAILED,
         ) from error
+    except (ValueError, TypeError) as error:
+        raise AdaptiveProviderError(
+            "The adaptive interviewer returned malformed JSON.",
+            failure_category=GenerationFailureCategory.MALFORMED_JSON,
+        ) from error
+    return result.value, result.json_parse_ms, result.pydantic_validation_ms
+
+
+def _parse_payload(raw: str) -> AdaptiveDecisionPayload:
+    payload, _, _ = _parse_payload_with_timings(raw)
+    return payload
 
 
 def _question_response(question: Any) -> InterviewSessionQuestionResponse:
@@ -248,22 +276,97 @@ class AdaptiveInterviewService:
             if callable(rollback):
                 rollback()
 
-            raw = (provider or get_ollama_generation_provider()).generate(
-                system_prompt=(
-                    "You are a careful CareerLens technical interviewer. "
-                    "Return only the requested JSON decision."
-                ),
-                prompt=prompt,
-            )
-            payload = _parse_payload(raw)
-            if (
-                payload.competency_reference is not None
-                and payload.competency_reference.casefold()
-                not in {name.casefold() for name in competency_names}
-            ):
-                raise AdaptiveProviderError(
-                    "The adaptive response referenced an unsupported competency."
+            active_provider = provider or get_ollama_generation_provider()
+            correlation_id = new_correlation_id()
+            operation_started_at = time.perf_counter()
+            provider_wait_ms = None
+            json_parse_ms = None
+            pydantic_validation_ms = None
+            grounding_validation_ms = None
+            try:
+                with generation_context(
+                    operation="adaptive_decision",
+                    correlation_id=correlation_id,
+                    attempt=1,
+                    provider=active_provider,
+                ):
+                    provider_started_at = time.perf_counter()
+                    raw = active_provider.generate(
+                        system_prompt=(
+                            "You are a careful CareerLens technical interviewer. "
+                            "Return only the requested JSON decision."
+                        ),
+                        prompt=prompt,
+                    )
+                    provider_wait_ms = elapsed_ms(provider_started_at)
+                    (
+                        payload,
+                        json_parse_ms,
+                        pydantic_validation_ms,
+                    ) = _parse_payload_with_timings(raw)
+                    grounding_started_at = time.perf_counter()
+                    if (
+                        payload.competency_reference is not None
+                        and payload.competency_reference.casefold()
+                        not in {name.casefold() for name in competency_names}
+                    ):
+                        raise AdaptiveProviderError(
+                            "The adaptive response referenced an unsupported competency.",
+                            failure_category=(
+                                GenerationFailureCategory.GROUNDING_VALIDATION_FAILED
+                            ),
+                        )
+                    grounding_validation_ms = elapsed_ms(grounding_started_at)
+                log_generation_event(
+                    event="llm_generation",
+                    success=True,
+                    provider=active_provider,
+                    operation="adaptive_decision",
+                    correlation_id=correlation_id,
+                    attempt=1,
+                    provider_wait_ms=provider_wait_ms,
+                    json_parse_ms=json_parse_ms,
+                    pydantic_validation_ms=pydantic_validation_ms,
+                    grounding_validation_ms=grounding_validation_ms,
+                    total_operation_ms=elapsed_ms(operation_started_at),
                 )
+            except AdaptiveProviderError as error:
+                if error.failure_category == GenerationFailureCategory.UNKNOWN_GENERATION_ERROR:
+                    error.failure_category = (
+                        GenerationFailureCategory.GROUNDING_VALIDATION_FAILED
+                    )
+                log_generation_event(
+                    event="llm_generation",
+                    success=False,
+                    provider=active_provider,
+                    operation="adaptive_decision",
+                    correlation_id=correlation_id,
+                    attempt=1,
+                    failure_category=error.failure_category,
+                    provider_wait_ms=provider_wait_ms,
+                    json_parse_ms=json_parse_ms,
+                    pydantic_validation_ms=pydantic_validation_ms,
+                    grounding_validation_ms=grounding_validation_ms,
+                    total_operation_ms=elapsed_ms(operation_started_at),
+                )
+                raise
+            except Exception as error:
+                log_generation_event(
+                    event="llm_generation",
+                    success=False,
+                    provider=active_provider,
+                    operation="adaptive_decision",
+                    correlation_id=correlation_id,
+                    attempt=1,
+                    failure_category=classify_generation_error(error),
+                    provider_http_status=provider_status_code(error),
+                    provider_wait_ms=provider_wait_ms,
+                    json_parse_ms=json_parse_ms,
+                    pydantic_validation_ms=pydantic_validation_ms,
+                    grounding_validation_ms=grounding_validation_ms,
+                    total_operation_ms=elapsed_ms(operation_started_at),
+                )
+                raise
 
         locked_record = self.repository.get_by_id_for_update(session_id)
         if locked_record is None:

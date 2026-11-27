@@ -237,8 +237,12 @@ def test_valid_evaluation_uses_weighted_rubric_and_is_idempotent(evaluation_cont
     second = service.evaluate_answer(session_id=7, answer_id=101, provider=provider)
 
     assert first.weighted_score == pytest.approx(3.2)
+    assert first.question == "Explain how you would design a Python API."
+    assert first.answer == "I would use Python and validate request data before persistence."
     assert len(first.criteria) == 2
     assert first.provider_name == "FakeProvider"
+    assert second.question == first.question
+    assert second.answer == first.answer
     assert second.id == first.id
     assert provider.calls == 1
     assert len(repository.evaluations) == 1

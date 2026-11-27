@@ -9,7 +9,10 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 @lru_cache(maxsize=1)
 def _get_model() -> SentenceTransformer:
     """Load and cache the embedding model."""
-    return SentenceTransformer(MODEL_NAME)
+    try:
+        return SentenceTransformer(MODEL_NAME, local_files_only=True)
+    except Exception:
+        return SentenceTransformer(MODEL_NAME)
 
 
 def embed_text(text: str) -> list[float]:

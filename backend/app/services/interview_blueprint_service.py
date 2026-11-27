@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from pydantic import ValidationError
@@ -28,7 +29,16 @@ from app.services.llm.generator import LLMGenerationProvider
 from app.services.llm.ollama_generator import get_ollama_generation_provider
 from app.services.llm.structured import (
     generate_structured_text,
-    parse_json_object,
+    parse_and_validate_model,
+)
+from app.services.llm.observability import (
+    GenerationFailureCategory,
+    classify_generation_error,
+    elapsed_ms,
+    generation_context,
+    log_generation_event,
+    new_correlation_id,
+    provider_status_code,
 )
 
 
@@ -54,6 +64,17 @@ class InterviewBlueprintNotFoundError(LookupError):
 
 class InterviewBlueprintProviderError(RuntimeError):
     """Raised when structured blueprint generation cannot be trusted."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_category: GenerationFailureCategory = (
+            GenerationFailureCategory.UNKNOWN_GENERATION_ERROR
+        ),
+    ) -> None:
+        super().__init__(message)
+        self.failure_category = failure_category
 
 
 def build_interview_blueprint_prompt(
@@ -102,15 +123,34 @@ def build_interview_blueprint_prompt(
     )
 
 
-def _parse_provider_payload(raw: str) -> InterviewBlueprintGenerationPayload:
+def _parse_provider_payload_with_timings(
+    raw: str,
+) -> tuple[InterviewBlueprintGenerationPayload, float, float]:
     try:
-        return InterviewBlueprintGenerationPayload.model_validate(
-            parse_json_object(raw)
+        result = parse_and_validate_model(
+            raw,
+            InterviewBlueprintGenerationPayload,
         )
-    except (ValidationError, ValueError, TypeError) as error:
+    except ValidationError as error:
         raise InterviewBlueprintProviderError(
-            "The interview blueprint provider returned invalid structured data."
+            "The interview blueprint provider returned schema-invalid data.",
+            failure_category=GenerationFailureCategory.SCHEMA_VALIDATION_FAILED,
         ) from error
+    except (ValueError, TypeError) as error:
+        raise InterviewBlueprintProviderError(
+            "The interview blueprint provider returned malformed JSON.",
+            failure_category=GenerationFailureCategory.MALFORMED_JSON,
+        ) from error
+    return (
+        result.value,
+        result.json_parse_ms,
+        result.pydantic_validation_ms,
+    )
+
+
+def _parse_provider_payload(raw: str) -> InterviewBlueprintGenerationPayload:
+    payload, _, _ = _parse_provider_payload_with_timings(raw)
+    return payload
 
 
 def _flatten_values(value: Any) -> str:
@@ -262,37 +302,128 @@ def generate_interview_blueprint(
         structured_resume=structured_resume,
         categorized_skills=categorized_skills,
     )
+    correlation_id = new_correlation_id()
+    operation_started_at = time.perf_counter()
     payload = None
-    for attempt in range(2):
+    for attempt_index in range(2):
+        attempt = attempt_index + 1
         prompt = base_prompt
-        if attempt:
+        retry_reason = None
+        if attempt_index:
             prompt += (
                 "\n\nYour previous response was rejected. Return one corrected "
                 "JSON object only. Follow the requested schema, configuration, "
                 "weight totals, question count, and grounding rules exactly."
             )
-        raw = generate_structured_text(
-            active_provider,
-            system_prompt=(
-                "You are a careful CareerLens interview blueprint planner. "
-                "Return only the requested grounded JSON object."
-            ),
-            prompt=prompt,
-            response_schema=InterviewBlueprintGenerationPayload.model_json_schema(),
-        )
+            retry_reason = "previous_attempt_rejected"
+
+        attempt_started_at = time.perf_counter()
+        provider_wait_ms = None
+        json_parse_ms = None
+        pydantic_validation_ms = None
+        grounding_validation_ms = None
         try:
-            candidate = _parse_provider_payload(raw)
-            _validate_grounding(
-                candidate,
-                config=active_config,
-                job=job,
-                structured_resume=structured_resume,
-            )
+            with generation_context(
+                operation="blueprint",
+                correlation_id=correlation_id,
+                attempt=attempt,
+                provider=active_provider,
+                retry_reason=retry_reason,
+            ):
+                provider_started_at = time.perf_counter()
+                raw = generate_structured_text(
+                    active_provider,
+                    system_prompt=(
+                        "You are a careful CareerLens interview blueprint planner. "
+                        "Return only the requested grounded JSON object."
+                    ),
+                    prompt=prompt,
+                    response_schema=(
+                        InterviewBlueprintGenerationPayload.model_json_schema()
+                    ),
+                )
+                provider_wait_ms = elapsed_ms(provider_started_at)
+                candidate, json_parse_ms, pydantic_validation_ms = (
+                    _parse_provider_payload_with_timings(raw)
+                )
+                grounding_started_at = time.perf_counter()
+                _validate_grounding(
+                    candidate,
+                    config=active_config,
+                    job=job,
+                    structured_resume=structured_resume,
+                )
+                grounding_validation_ms = elapsed_ms(grounding_started_at)
             payload = candidate
+            log_generation_event(
+                event="llm_generation",
+                success=True,
+                provider=active_provider,
+                operation="blueprint",
+                correlation_id=correlation_id,
+                attempt=attempt,
+                provider_wait_ms=provider_wait_ms,
+                json_parse_ms=json_parse_ms,
+                pydantic_validation_ms=pydantic_validation_ms,
+                grounding_validation_ms=grounding_validation_ms,
+                total_operation_ms=elapsed_ms(operation_started_at),
+            )
             break
-        except InterviewBlueprintProviderError:
-            if attempt == 1:
+        except InterviewBlueprintProviderError as error:
+            if error.failure_category == GenerationFailureCategory.UNKNOWN_GENERATION_ERROR:
+                error.failure_category = (
+                    GenerationFailureCategory.GROUNDING_VALIDATION_FAILED
+                )
+            if attempt_index == 1:
+                log_generation_event(
+                    event="llm_generation",
+                    success=False,
+                    provider=active_provider,
+                    operation="blueprint",
+                    correlation_id=correlation_id,
+                    attempt=attempt,
+                    failure_category=GenerationFailureCategory.GENERATION_RETRY_EXHAUSTED,
+                    root_failure_category=error.failure_category,
+                    retry_reason=error.failure_category.value,
+                    provider_wait_ms=provider_wait_ms,
+                    json_parse_ms=json_parse_ms,
+                    pydantic_validation_ms=pydantic_validation_ms,
+                    grounding_validation_ms=grounding_validation_ms,
+                    total_operation_ms=elapsed_ms(operation_started_at),
+                )
                 raise
+            log_generation_event(
+                event="llm_generation_retry",
+                success=False,
+                provider=active_provider,
+                operation="blueprint",
+                correlation_id=correlation_id,
+                attempt=attempt,
+                failure_category=error.failure_category,
+                retry_reason=error.failure_category.value,
+                provider_wait_ms=provider_wait_ms,
+                json_parse_ms=json_parse_ms,
+                pydantic_validation_ms=pydantic_validation_ms,
+                grounding_validation_ms=grounding_validation_ms,
+                total_attempt_ms=elapsed_ms(attempt_started_at),
+            )
+        except Exception as error:
+            log_generation_event(
+                event="llm_generation",
+                success=False,
+                provider=active_provider,
+                operation="blueprint",
+                correlation_id=correlation_id,
+                attempt=attempt,
+                failure_category=classify_generation_error(error),
+                provider_http_status=provider_status_code(error),
+                provider_wait_ms=provider_wait_ms,
+                json_parse_ms=json_parse_ms,
+                pydantic_validation_ms=pydantic_validation_ms,
+                grounding_validation_ms=grounding_validation_ms,
+                total_operation_ms=elapsed_ms(operation_started_at),
+            )
+            raise
 
     if payload is None:
         raise InterviewBlueprintProviderError(

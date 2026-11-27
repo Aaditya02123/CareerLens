@@ -1,14 +1,42 @@
 import { useEffect, useMemo, useState } from 'react'
+import { AuthProvider } from './context/AuthContext'
 import AppShell from './components/layout/AppShell'
+import AuthPage from './components/auth/AuthPage'
 import Dashboard from './components/dashboard/Dashboard'
 import JobsWorkspace from './components/jobs/JobsWorkspace'
 import InterviewWorkspace from './components/interview/InterviewWorkspace'
 import ResumeWorkspace from './components/resume/ResumeWorkspace'
 import RoadmapWorkspace from './components/roadmap/RoadmapWorkspace'
 
-function App() {
+function AppContent() {
   const [backendStatus, setBackendStatus] = useState('loading')
   const [activeSection, setActiveSection] = useState('Overview')
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('careerlens-theme')
+      if (saved === 'light' || saved === 'dark') {
+        return saved
+      }
+      return window.matchMedia?.('(prefers-color-scheme: light)').matches
+        ? 'light'
+        : 'dark'
+    } catch {
+      return 'dark'
+    }
+  })
+
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute('data-theme', theme)
+      localStorage.setItem('careerlens-theme', theme)
+    } catch {
+      // Ignore storage errors in restricted contexts
+    }
+  }, [theme])
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  }
 
   useEffect(() => {
     fetch('http://127.0.0.1:8000/health')
@@ -66,6 +94,14 @@ function App() {
       }
     }
 
+    if (activeSection === 'Account' || activeSection === 'Sign In') {
+      return {
+        title: 'Account & Security',
+        description:
+          'Sign in or register to securely persist your career intelligence profile.',
+      }
+    }
+
     return {
       title: activeSection,
       description:
@@ -79,10 +115,12 @@ function App() {
       backendStatus={backendStatus}
       pageTitle={pageContext.title}
       pageDescription={pageContext.description}
+      theme={theme}
+      onToggleTheme={toggleTheme}
       onNavigate={setActiveSection}
     >
       {activeSection === 'Overview' ? (
-        <Dashboard />
+        <Dashboard onNavigate={setActiveSection} />
       ) : activeSection === 'Resume' ? (
         <ResumeWorkspace />
       ) : activeSection === 'Jobs' ? (
@@ -91,6 +129,10 @@ function App() {
         <RoadmapWorkspace />
       ) : activeSection === 'Interviews' ? (
         <InterviewWorkspace />
+      ) : activeSection === 'Account' || activeSection === 'Sign In' ? (
+        <div className="py-6">
+          <AuthPage initialMode="login" />
+        </div>
       ) : (
         <section className="rounded-[var(--radius-lg)] border border-[var(--cl-border)] bg-[var(--cl-surface)] p-8 shadow-[var(--shadow-soft)]">
           <p className="text-sm font-medium uppercase tracking-[0.22em] text-[var(--cl-accent)]">
@@ -108,6 +150,14 @@ function App() {
         </section>
       )}
     </AppShell>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   )
 }
 

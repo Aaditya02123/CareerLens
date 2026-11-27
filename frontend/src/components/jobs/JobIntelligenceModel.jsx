@@ -10,15 +10,15 @@ function formatScore(score) {
 
 function ScoreCard({ label, score, accent = false }) {
   return (
-    <div className="rounded-xl border border-white/7 bg-white/[0.025] p-4">
-      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/30">
+    <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-4">
+      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
         {label}
       </p>
 
       <p
         className={[
           'mt-2 text-xl font-medium',
-          accent ? 'text-[#e5c57c]' : 'text-white',
+          accent ? 'text-[var(--cl-accent)]' : 'text-[var(--cl-text)]',
         ].join(' ')}
       >
         {formatScore(score)}
@@ -34,7 +34,7 @@ function SkillList({ title, skills, tone = 'normal' }) {
 
   return (
     <div>
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/30">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
         {title}
       </p>
 
@@ -45,8 +45,8 @@ function SkillList({ title, skills, tone = 'normal' }) {
             className={[
               'rounded-md border px-2.5 py-1 text-[11px]',
               missing
-                ? 'border-white/7 bg-white/[0.025] text-white/50'
-                : 'border-white/8 bg-white/[0.045] text-white/70',
+                ? 'border-[var(--cl-border)] bg-[var(--cl-surface-muted)] text-[var(--cl-muted)]'
+                : 'border-[var(--cl-border)] bg-[var(--cl-surface-soft)] text-[var(--cl-text-soft)]',
             ].join(' ')}
           >
             {missing ? '⚠ ' : '✓ '}
@@ -228,30 +228,30 @@ function EvidenceSource({ item, skill, supporting = false }) {
       className={[
         'rounded-lg border p-3',
         supporting
-          ? 'border-white/7 bg-white/[0.02]'
-          : 'border-[#d6b36a]/12 bg-[#d6b36a]/[0.025]',
+          ? 'border-[var(--cl-border)] bg-[var(--cl-surface-muted)]'
+          : 'border-[var(--cl-accent-soft)] bg-[var(--cl-accent-soft)]',
       ].join(' ')}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium leading-5 text-white/75">
+          <p className="text-sm font-medium leading-5 text-[var(--cl-text-soft)]">
             {sourceTitle}
           </p>
 
-          <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-white/30">
+          <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-[var(--cl-faint)]">
             {formatSourceLabel(item.source_type)}
           </p>
         </div>
 
         {!supporting && (
-          <span className="shrink-0 rounded-full border border-[#d6b36a]/15 px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-[#e5c57c]/75">
+          <span className="shrink-0 rounded-full border border-[var(--cl-accent-soft)] px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-[var(--cl-accent)]/75">
             Direct
           </span>
         )}
       </div>
 
       {showExcerpt && excerpt && (
-        <p className="mt-2 text-sm leading-6 text-white/50">
+        <p className="mt-2 text-sm leading-6 text-[var(--cl-muted)]">
           {excerpt}
         </p>
       )}
@@ -261,26 +261,26 @@ function EvidenceSource({ item, skill, supporting = false }) {
 
 function EvidenceGroup({ group }) {
   return (
-    <section className="rounded-xl border border-white/7 bg-white/[0.02] p-4">
+    <section className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h4 className="text-base font-medium text-white">
+          <h4 className="text-base font-medium text-[var(--cl-text)]">
             {group.skill}
           </h4>
 
           <div className="mt-1 flex flex-wrap items-center gap-2">
             {group.direct.length > 0 && (
-              <span className="text-[10px] uppercase tracking-[0.14em] text-[#d6b36a]/70">
+              <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--cl-accent)]/70">
                 Direct evidence
               </span>
             )}
 
             {group.direct.length > 0 && group.supporting.length > 0 && (
-              <span className="text-[10px] text-white/20">·</span>
+              <span className="text-[10px] text-[var(--cl-faint)]">·</span>
             )}
 
             {group.supporting.length > 0 && (
-              <span className="text-[10px] uppercase tracking-[0.14em] text-white/30">
+              <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--cl-faint)]">
                 {group.supporting.length} supporting{' '}
                 {group.supporting.length === 1 ? 'source' : 'sources'}
               </span>
@@ -289,7 +289,7 @@ function EvidenceGroup({ group }) {
         </div>
 
         {group.direct.length > 0 && (
-          <span className="rounded-full border border-[#d6b36a]/15 px-2 py-1 text-[10px] uppercase tracking-[0.13em] text-[#e5c57c]">
+          <span className="rounded-full border border-[var(--cl-accent-soft)] px-2 py-1 text-[10px] uppercase tracking-[0.13em] text-[var(--cl-accent)]">
             Direct
           </span>
         )}
@@ -309,7 +309,7 @@ function EvidenceGroup({ group }) {
 
       {group.supporting.length > 0 && (
         <div className="mt-4">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/30">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
             Supporting evidence
           </p>
 
@@ -343,7 +343,7 @@ function AiSection({
             Grounded AI interpretation
           </p>
 
-          <h3 className="mt-2 text-lg font-medium tracking-[-0.02em] text-white">
+          <h3 className="mt-2 text-lg font-medium tracking-[-0.02em] text-[var(--cl-text)]">
             Why it fits
           </h3>
         </div>
@@ -364,28 +364,28 @@ function AiSection({
           aria-live="polite"
           aria-label="Loading AI interpretation"
         >
-          <div className="h-3 animate-pulse rounded bg-white/[0.08]" />
-          <div className="h-3 w-11/12 animate-pulse rounded bg-white/[0.08]" />
+          <div className="h-3 animate-pulse rounded bg-[var(--cl-surface-muted)]" />
+          <div className="h-3 w-11/12 animate-pulse rounded bg-[var(--cl-surface-muted)]" />
         </div>
       ) : aiError ? (
         <div
           className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
           role="alert"
         >
-          <p className="text-sm leading-6 text-white/50">
+          <p className="text-sm leading-6 text-[var(--cl-muted)]">
             {aiError}
           </p>
 
           <button
             type="button"
             onClick={onRetryAi}
-            className="shrink-0 rounded-lg border border-sky-200/20 px-3 py-2 text-xs font-medium text-sky-100/75 transition hover:bg-sky-200/10 hover:text-white"
+            className="shrink-0 rounded-lg border border-sky-200/20 px-3 py-2 text-xs font-medium text-sky-100/75 transition hover:bg-sky-200/10 hover:text-[var(--cl-text)]"
           >
             Retry
           </button>
         </div>
       ) : aiExplanation?.why_it_fits ? (
-        <p className="mt-4 text-sm leading-7 text-white/65">
+        <p className="mt-4 text-sm leading-7 text-[var(--cl-text-soft)]">
           {aiExplanation.why_it_fits}
         </p>
       ) : null}
@@ -536,30 +536,30 @@ export default function JobIntelligenceModel({
         role="dialog"
         aria-modal="true"
         aria-labelledby={dialogTitleId}
-        className="cl-scrollbar relative ml-auto flex h-full w-full flex-col overflow-y-auto border-l border-white/10 bg-[#0d131c] shadow-2xl lg:max-w-[680px]"
+        className="cl-scrollbar relative ml-auto flex h-full w-full flex-col overflow-y-auto border-l border-[var(--cl-border)] bg-[var(--cl-bg-elevated)] shadow-2xl lg:max-w-[680px]"
       >
-        <header className="sticky top-0 z-10 border-b border-white/8 bg-[#0d131c]/95 px-5 py-5 backdrop-blur-xl sm:px-7">
+        <header className="sticky top-0 z-10 border-b border-[var(--cl-border)] bg-[var(--cl-bg-elevated)]/95 px-5 py-5 backdrop-blur-xl sm:px-7">
           <div className="flex items-start justify-between gap-5">
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
                 Job intelligence
               </p>
 
               <h2
                 id={dialogTitleId}
-                className="mt-2 truncate text-2xl font-medium tracking-[-0.03em] text-white"
+                className="mt-2 truncate text-2xl font-medium tracking-[-0.03em] text-[var(--cl-text)]"
               >
                 {job.title}
               </h2>
 
-              <p className="mt-1 text-sm text-white/45">
+              <p className="mt-1 text-sm text-[var(--cl-muted)]">
                 {job.company || 'Company not specified'}
                 {job.location ? ` · ${job.location}` : ''}
               </p>
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {job.source && (
-                  <span className="rounded-full border border-white/8 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/45">
+                  <span className="rounded-full border border-[var(--cl-border)] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-[var(--cl-muted)]">
                     {job.source}
                   </span>
                 )}
@@ -569,7 +569,7 @@ export default function JobIntelligenceModel({
                     href={job.source_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs font-medium text-[#d6b36a] underline-offset-4 hover:underline"
+                    className="text-xs font-medium text-[var(--cl-accent)] underline-offset-4 hover:underline"
                   >
                     Open original job →
                   </a>
@@ -581,7 +581,7 @@ export default function JobIntelligenceModel({
               ref={closeButtonRef}
               type="button"
               onClick={onClose}
-              className="shrink-0 rounded-lg px-2 py-1 text-xl text-white/45 transition hover:bg-white/5 hover:text-white"
+              className="shrink-0 rounded-lg px-2 py-1 text-xl text-[var(--cl-muted)] transition hover:bg-white/5 hover:text-[var(--cl-text)]"
               aria-label="Close job intelligence"
             >
               ×
@@ -596,9 +596,9 @@ export default function JobIntelligenceModel({
               aria-live="polite"
               aria-label="Loading match intelligence"
             >
-              <div className="h-28 animate-pulse rounded-xl bg-white/[0.035]" />
-              <div className="h-36 animate-pulse rounded-xl bg-white/[0.035]" />
-              <div className="h-48 animate-pulse rounded-xl bg-white/[0.035]" />
+              <div className="h-28 animate-pulse rounded-xl bg-[var(--cl-surface-muted)]" />
+              <div className="h-36 animate-pulse rounded-xl bg-[var(--cl-surface-muted)]" />
+              <div className="h-48 animate-pulse rounded-xl bg-[var(--cl-surface-muted)]" />
             </div>
           ) : error ? (
             <div
@@ -616,11 +616,11 @@ export default function JobIntelligenceModel({
           ) : explanation ? (
             <>
               <section>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-faint)]">
                   Match intelligence
                 </p>
 
-                <h3 className="mt-2 text-xl font-medium tracking-[-0.02em] text-white">
+                <h3 className="mt-2 text-xl font-medium tracking-[-0.02em] text-[var(--cl-text)]">
                   {explanation.match_level
                     ? `${explanation.match_level} alignment`
                     : 'Your match breakdown'}
@@ -670,15 +670,15 @@ export default function JobIntelligenceModel({
               />
 
               <section>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
                   Resume evidence
                 </p>
 
-                <h3 className="mt-2 text-xl font-medium tracking-[-0.02em] text-white">
+                <h3 className="mt-2 text-xl font-medium tracking-[-0.02em] text-[var(--cl-text)]">
                   What in your resume supports this match
                 </h3>
 
-                <p className="mt-2 text-xs leading-5 text-white/35">
+                <p className="mt-2 text-xs leading-5 text-[var(--cl-faint)]">
                   Evidence is grouped by skill, with direct resume evidence
                   separated from supporting project and experience evidence.
                 </p>
@@ -692,35 +692,35 @@ export default function JobIntelligenceModel({
                       />
                     ))
                   ) : (
-                    <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-5 text-sm leading-6 text-white/40">
+                    <div className="rounded-xl border border-dashed border-[var(--cl-border)] bg-[var(--cl-surface-muted)] px-4 py-5 text-sm leading-6 text-[var(--cl-muted)]">
                       No resume evidence was returned for the matched skills.
                     </div>
                   )}
                 </div>
               </section>
 
-              <section className="rounded-xl border border-white/8 bg-white/[0.02] p-5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+              <section className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
                   Next step
                 </p>
 
                 {aiExplanation?.next_step ? (
-                  <p className="mt-3 text-sm leading-6 text-white/60">
+                  <p className="mt-3 text-sm leading-6 text-[var(--cl-text-soft)]">
                     {aiExplanation.next_step}
                   </p>
                 ) : aiError ? (
-                  <p className="mt-3 text-sm leading-6 text-white/40">
+                  <p className="mt-3 text-sm leading-6 text-[var(--cl-muted)]">
                     The structured next step is temporarily unavailable.
                   </p>
                 ) : null}
               </section>
 
               <section>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
                   Job description
                 </p>
 
-                <p className="mt-3 text-sm leading-6 text-white/50">
+                <p className="mt-3 text-sm leading-6 text-[var(--cl-muted)]">
                   {job.description || 'No job description was provided.'}
                 </p>
               </section>

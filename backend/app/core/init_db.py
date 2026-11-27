@@ -5,6 +5,9 @@ from app.models.interview_session import (  # noqa: F401
     InterviewQuestion,
     InterviewSession,
 )
+from app.models.interview_proctoring import (  # noqa: F401
+    ProctoringEvent,
+)
 from app.models.interview_execution import (  # noqa: F401
     InterviewAdaptiveDecision,
     InterviewExecutionSession,

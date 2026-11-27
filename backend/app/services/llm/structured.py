@@ -2,11 +2,22 @@ from __future__ import annotations
 
 import json
 import re
+import time
+from dataclasses import dataclass
 from typing import Any
 
 
 class StructuredOutputError(ValueError):
     """Raised when a provider response is not one JSON object."""
+
+
+@dataclass(frozen=True)
+class StructuredValidationResult:
+    """Validated model plus parsing and Pydantic validation durations."""
+
+    value: Any
+    json_parse_ms: float
+    pydantic_validation_ms: float
 
 
 def parse_json_object(raw: Any) -> dict[str, Any]:
@@ -43,6 +54,26 @@ def parse_json_object(raw: Any) -> dict[str, Any]:
             "Structured output must contain exactly one JSON object."
         )
     return value
+
+
+def parse_and_validate_model(raw: Any, model_type: Any) -> StructuredValidationResult:
+    """Parse one JSON object and validate it with the supplied Pydantic model."""
+
+    parse_started_at = time.perf_counter()
+    parsed = parse_json_object(raw)
+    json_parse_ms = round((time.perf_counter() - parse_started_at) * 1000, 2)
+
+    validation_started_at = time.perf_counter()
+    value = model_type.model_validate(parsed)
+    pydantic_validation_ms = round(
+        (time.perf_counter() - validation_started_at) * 1000,
+        2,
+    )
+    return StructuredValidationResult(
+        value=value,
+        json_parse_ms=json_parse_ms,
+        pydantic_validation_ms=pydantic_validation_ms,
+    )
 
 
 def generate_structured_text(

@@ -317,20 +317,20 @@ export default function JobsWorkspace() {
   const hasJobs = filteredJobs.length > 0
 
   return (
-    <section className="min-h-full bg-[#0a0a0a] text-white">
-      <div className="mx-auto max-w-[1500px] px-6 py-7 lg:px-8">
+    <section className="space-y-6">
+      <div className="space-y-6">
         <header className="mb-7">
           <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
             <div>
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#d6b36a]">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--cl-accent)]">
                 Career intelligence
               </p>
 
-              <h1 className="text-3xl font-medium tracking-[-0.035em] text-white">
+              <h1 className="text-3xl font-medium tracking-[-0.035em] text-[var(--cl-text)]">
                 Jobs
               </h1>
 
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/45">
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--cl-muted)]">
                 Discover opportunities, understand your
                 match, and see the skills that could move
                 you closer to the role.
@@ -339,12 +339,12 @@ export default function JobsWorkspace() {
 
             <div className="flex items-center gap-3">
               {resume && (
-                <div className="rounded-xl border border-white/8 bg-white/[0.025] px-4 py-2.5">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/30">
+                <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] px-4 py-2.5">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
                     Matching resume
                   </p>
 
-                  <p className="mt-1 max-w-[220px] truncate text-xs text-white/65">
+                  <p className="mt-1 max-w-[220px] truncate text-xs text-[var(--cl-text-soft)]">
                     {resume.original_filename}
                   </p>
                 </div>
@@ -354,7 +354,7 @@ export default function JobsWorkspace() {
                 type="button"
                 onClick={loadJobs}
                 disabled={loading}
-                className="rounded-xl border border-white/8 px-4 py-2.5 text-xs font-medium text-white/60 transition hover:border-white/15 hover:bg-white/[0.04] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-xl border border-[var(--cl-border)] px-4 py-2.5 text-xs font-medium text-[var(--cl-text-soft)] transition hover:border-[var(--cl-border-strong)] hover:bg-[var(--cl-surface-soft)] hover:text-[var(--cl-text)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {loading ? 'Refreshing...' : 'Refresh'}
               </button>
@@ -399,16 +399,16 @@ export default function JobsWorkspace() {
         )}
 
         {!loading && !error && !resume && (
-          <div className="mt-5 rounded-2xl border border-[#d6b36a]/15 bg-[#d6b36a]/[0.035] p-6">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+          <div className="mt-5 rounded-2xl border border-[var(--cl-accent-soft)] bg-[var(--cl-accent-soft)] p-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
               Resume required for personalization
             </p>
 
-            <h2 className="mt-2 text-lg font-medium text-white">
+            <h2 className="mt-2 text-lg font-medium text-[var(--cl-text)]">
               Upload a resume to unlock your match intelligence.
             </h2>
 
-            <p className="mt-2 max-w-xl text-sm leading-6 text-white/45">
+            <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--cl-muted)]">
               CareerLens can still show available jobs, but
               personalized recommendations require an analyzed
               resume.
@@ -420,7 +420,7 @@ export default function JobsWorkspace() {
           <main>
             <div className="mb-4 flex items-end justify-between">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-faint)]">
                   For you
                 </p>
 
@@ -429,7 +429,7 @@ export default function JobsWorkspace() {
                 </h2>
               </div>
 
-              <span className="text-xs text-white/30">
+              <span className="text-xs text-[var(--cl-faint)]">
                 {recommendationsLoading
                   ? 'Calculating matches...'
                   : `${recommendationCount} matched`}
@@ -441,7 +441,7 @@ export default function JobsWorkspace() {
                 {[1, 2, 3].map((item) => (
                   <div
                     key={item}
-                    className="h-[230px] animate-pulse rounded-2xl border border-white/6 bg-white/[0.025]"
+                    className="h-[230px] animate-pulse rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)]"
                   />
                 ))}
               </div>
@@ -459,12 +459,12 @@ export default function JobsWorkspace() {
                 )}
               </div>
             ) : (
-              <div className="rounded-2xl border border-white/8 bg-[#111111] p-8">
-                <p className="text-sm font-medium text-white/75">
+              <div className="rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-8">
+                <p className="text-sm font-medium text-[var(--cl-text-soft)]">
                   No personalized matches found.
                 </p>
 
-                <p className="mt-2 text-sm leading-6 text-white/40">
+                <p className="mt-2 text-sm leading-6 text-[var(--cl-muted)]">
                   Once your resume has an analysis and jobs
                   are available, CareerLens will calculate
                   personalized matches here.
@@ -474,7 +474,7 @@ export default function JobsWorkspace() {
 
             <div className="mb-4 mt-10 flex items-end justify-between">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-faint)]">
                   Discovery
                 </p>
 
@@ -483,21 +483,21 @@ export default function JobsWorkspace() {
                 </h2>
               </div>
 
-              <span className="text-xs text-white/30">
+              <span className="text-xs text-[var(--cl-faint)]">
                 {filteredJobs.length} results
               </span>
             </div>
 
             {!loading && !hasJobs ? (
-              <div className="rounded-2xl border border-white/8 bg-[#111111] p-8">
-                <p className="text-sm font-medium text-white/75">
+              <div className="rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-8">
+                <p className="text-sm font-medium text-[var(--cl-text-soft)]">
                   No jobs match these filters.
                 </p>
 
                 <button
                   type="button"
                   onClick={handleClearFilters}
-                  className="mt-3 text-xs text-[#d6b36a]"
+                  className="mt-3 text-xs text-[var(--cl-accent)]"
                 >
                   Clear filters
                 </button>
@@ -519,8 +519,8 @@ export default function JobsWorkspace() {
           </main>
 
           <aside className="hidden xl:block">
-            <div className="sticky top-6 rounded-2xl border border-white/8 bg-[#101010] p-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+            <div className="sticky top-6 rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
                 Intelligence
               </p>
 
@@ -529,34 +529,34 @@ export default function JobsWorkspace() {
               </h3>
 
               <div className="mt-5 space-y-4">
-                <div className="border-b border-white/7 pb-4">
-                  <p className="text-sm text-white/75">
+                <div className="border-b border-[var(--cl-border)] pb-4">
+                  <p className="text-sm text-[var(--cl-text-soft)]">
                     Required skills
                   </p>
 
-                  <p className="mt-1 text-xs leading-5 text-white/35">
+                  <p className="mt-1 text-xs leading-5 text-[var(--cl-faint)]">
                     How much of the role's required skill set
                     appears in your resume.
                   </p>
                 </div>
 
-                <div className="border-b border-white/7 pb-4">
-                  <p className="text-sm text-white/75">
+                <div className="border-b border-[var(--cl-border)] pb-4">
+                  <p className="text-sm text-[var(--cl-text-soft)]">
                     Semantic alignment
                   </p>
 
-                  <p className="mt-1 text-xs leading-5 text-white/35">
+                  <p className="mt-1 text-xs leading-5 text-[var(--cl-faint)]">
                     Similarity between your resume and the
                     job's description.
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-sm text-white/75">
+                  <p className="text-sm text-[var(--cl-text-soft)]">
                     Skill gap
                   </p>
 
-                  <p className="mt-1 text-xs leading-5 text-white/35">
+                  <p className="mt-1 text-xs leading-5 text-[var(--cl-faint)]">
                     Required skills detected in the job but
                     not in your resume.
                   </p>

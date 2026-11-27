@@ -1,3 +1,5 @@
+import { getAuthHeaders } from './auth'
+
 const API_BASE_URL = 'http://127.0.0.1:8000'
 
 async function readJsonResponse(response) {
@@ -33,6 +35,11 @@ export async function fetchSkillGap(resumeId, jobId) {
     `${API_BASE_URL}/skill-gap/resumes/${encodeURIComponent(
       resumeId,
     )}/jobs/${encodeURIComponent(jobId)}`,
+    {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    },
   )
 
   return readJsonResponse(response)

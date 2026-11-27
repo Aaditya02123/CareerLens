@@ -1,3 +1,4 @@
+import AuthModal from '../auth/AuthModal'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 
@@ -6,11 +7,13 @@ function AppShell({
   backendStatus,
   pageTitle,
   pageDescription,
+  theme,
+  onToggleTheme,
   onNavigate,
   children,
 }) {
   return (
-    <div className="min-h-screen bg-[var(--cl-bg)] text-[var(--cl-text)]">
+    <div className="min-h-screen bg-[var(--cl-bg)] text-[var(--cl-text)] transition-colors duration-200">
       <div className="flex min-h-screen flex-col lg:flex-row">
         <Sidebar
           activeSection={activeSection}
@@ -22,6 +25,8 @@ function AppShell({
             title={pageTitle}
             description={pageDescription}
             backendStatus={backendStatus}
+            theme={theme}
+            onToggleTheme={onToggleTheme}
           />
 
           <main className="cl-scrollbar flex-1 overflow-x-hidden px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
@@ -29,6 +34,7 @@ function AppShell({
           </main>
         </div>
       </div>
+      <AuthModal />
     </div>
   )
 }

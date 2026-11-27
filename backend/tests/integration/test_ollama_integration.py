@@ -11,7 +11,7 @@ def test_ollama_qwen_generation():
         pytest.skip("Set RUN_OLLAMA_INTEGRATION=1 to run Ollama integration tests.")
 
     provider = OllamaGenerationProvider(
-        model=os.getenv("OLLAMA_MODEL", "qwen3.5:9b"),
+        model=os.getenv("OLLAMA_MODEL", "qwen3.5:4b"),
     )
 
     result = provider.generate(

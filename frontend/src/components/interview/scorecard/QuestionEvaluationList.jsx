@@ -40,20 +40,20 @@ export default function QuestionEvaluationList({
   return (
     <section aria-labelledby="question-evaluations-heading">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
           Question review
         </p>
         <h3
           id="question-evaluations-heading"
-          className="mt-2 text-lg font-medium text-white/90"
+          className="mt-2 text-lg font-medium text-[var(--cl-text)]"
         >
           Question-by-question evaluation
         </h3>
       </div>
 
       {evaluations.length === 0 && pendingAnswers.length === 0 ? (
-        <div className="mt-5 rounded-xl border border-white/8 bg-white/[0.02] p-5">
-          <p className="text-sm leading-6 text-white/45">
+        <div className="mt-5 rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-5">
+          <p className="text-sm leading-6 text-[var(--cl-muted)]">
             No submitted answers are available for evaluation yet.
           </p>
         </div>

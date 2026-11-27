@@ -17,7 +17,7 @@ export default function RoadmapResourceSection({
     : []
 
   return (
-    <div className="mt-5 border-t border-white/8 pt-4">
+    <div className="mt-5 border-t border-[var(--cl-border)] pt-4">
       <button
         type="button"
         aria-expanded={isExpanded}
@@ -28,13 +28,13 @@ export default function RoadmapResourceSection({
             : 'Explore learning resources'
         }
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d6b36a]/70"
+        className="flex w-full items-center justify-between gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cl-accent)]"
       >
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#d6b36a]">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-accent)]">
           Learning resources
         </span>
 
-        <span className="text-xs text-white/40">
+        <span className="text-xs text-[var(--cl-muted)]">
           {isExpanded ? 'Hide resources' : 'Explore resources'}
         </span>
       </button>
@@ -47,11 +47,11 @@ export default function RoadmapResourceSection({
       >
         {resourceLoading ? (
           <div
-            className="rounded-xl border border-white/8 bg-white/[0.025] p-4"
+            className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-4"
             aria-label="Loading learning resources"
           >
-            <div className="h-4 w-2/3 animate-pulse rounded bg-white/[0.08]" />
-            <div className="mt-3 h-3 w-1/3 animate-pulse rounded bg-white/[0.06]" />
+            <div className="h-4 w-2/3 animate-pulse rounded bg-[var(--cl-surface-muted)]" />
+            <div className="mt-3 h-3 w-1/3 animate-pulse rounded bg-[var(--cl-surface-muted)]" />
           </div>
         ) : resourceError ? (
           <div
@@ -75,8 +75,8 @@ export default function RoadmapResourceSection({
             </button>
           </div>
         ) : resources.length === 0 ? (
-          <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-            <p className="text-xs leading-5 text-white/50">
+          <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-4">
+            <p className="text-xs leading-5 text-[var(--cl-muted)]">
               No curated learning resources are currently available for this skill.
             </p>
           </div>
@@ -85,18 +85,18 @@ export default function RoadmapResourceSection({
             {resources.map((resource) => (
               <article
                 key={resource.id}
-                className="rounded-xl border border-white/8 bg-white/[0.02] p-4"
+                className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-4"
               >
                 <a
                   href={resource.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sm font-medium text-[#e5c57c]/90 underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d6b36a]/70"
+                  className="text-sm font-medium text-[var(--cl-accent)]/90 underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cl-accent)]"
                 >
                   {resource.title || 'Learning resource'}
                 </a>
 
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/40">
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--cl-muted)]">
                   <span>{resource.provider || 'Unknown provider'}</span>
                   <span>{formatResourceType(resource.resource_type)}</span>
                   <span>{resource.level || 'Level unavailable'}</span>

@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.models.job_explanation import JobExplanationResult
-from app.models.match_explaination import MatchEvidence
+from app.models.match_explaination import MatchEvidence, MatchExplanationResponse
 from app.repositories.job_repository import JobRepository
 from app.services.hybrid_matching_service import JobNotFoundError
 from app.services.job_explanation_generator import JobExplanationGenerator
 from app.services.llm.generator import LLMGenerationProvider
 from app.services.llm.ollama_generator import OllamaGenerationProvider
 from app.services.match_explaination_service import explain_match
+
+_LOGGER = logging.getLogger(__name__)
 
 
 JOB_EXPLANATION_SYSTEM_PROMPT = """
@@ -226,6 +229,70 @@ def _sanitize_why_it_fits(value: str) -> str:
     )
 
 
+def build_deterministic_why_it_fits(
+    explanation: MatchExplanationResponse,
+    job_title: str,
+    company: str | None = None,
+) -> str:
+    """Generate grounded candidate-facing WHY IT FITS text deterministically.
+
+    Acts as an authoritative fallback when the LLM service is offline or unreachable,
+    strictly adhering to verified matched skills and resume evidence.
+    """
+    target = f"{job_title} role at {company}" if company else f"{job_title} role"
+    matched_req = [
+        skill.strip()
+        for skill in explanation.matched_required_skills
+        if skill and skill.strip()
+    ]
+    matched_pref = [
+        skill.strip()
+        for skill in explanation.matched_preferred_skills
+        if skill and skill.strip()
+    ]
+
+    if matched_req:
+        if len(matched_req) == 1:
+            skills_str = matched_req[0]
+        elif len(matched_req) == 2:
+            skills_str = f"{matched_req[0]} and {matched_req[1]}"
+        else:
+            skills_str = f"{', '.join(matched_req[:2])}, and {matched_req[2]}"
+
+        sentence1 = (
+            f"Your resume demonstrates verified background in {skills_str}, "
+            f"directly aligning with the core requirements for the {target}."
+        )
+    elif matched_pref:
+        if len(matched_pref) == 1:
+            skills_str = matched_pref[0]
+        else:
+            skills_str = f"{matched_pref[0]} and {matched_pref[1]}"
+
+        sentence1 = (
+            f"Your profile reflects relevant experience in {skills_str}, "
+            f"matching preferred qualifications for the {target}."
+        )
+    else:
+        sentence1 = (
+            f"Your background provides foundational qualifications relevant to the {target}."
+        )
+
+    source_types = {
+        item.source_type.strip().lower()
+        for item in explanation.evidence
+        if item.source_type and item.source_type.strip()
+    }
+    if {"project", "experience"} & source_types:
+        sentence2 = " Your hands-on project and experience history reinforce this alignment."
+    elif {"education", "certification"} & source_types:
+        sentence2 = " Your verified education and certification history reinforce this match."
+    else:
+        sentence2 = ""
+
+    return f"{sentence1}{sentence2}".strip()
+
+
 def compose_job_explanation(
     *,
     why_it_fits: str,
@@ -263,13 +330,26 @@ def generate_job_explanation(
         provider=provider or OllamaGenerationProvider(),
     )
 
-    why_it_fits = _sanitize_why_it_fits(
-        generator.generate(
+    try:
+        raw_why_it_fits = generator.generate(
             explanation=deterministic,
             job_title=job.title,
             company=job.company,
         )
-    )
+        why_it_fits = _sanitize_why_it_fits(raw_why_it_fits)
+    except Exception as error:
+        _LOGGER.warning(
+            "LLM generation failed or provider unavailable for job explanation "
+            "(resume_id=%s, job_id=%s): %s. Falling back to deterministic explanation.",
+            resume_id,
+            job_id,
+            error,
+        )
+        why_it_fits = build_deterministic_why_it_fits(
+            explanation=deterministic,
+            job_title=job.title,
+            company=job.company,
+        )
 
     gap = build_deterministic_gap(
         deterministic.missing_required_skills

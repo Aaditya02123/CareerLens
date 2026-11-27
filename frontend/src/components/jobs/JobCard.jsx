@@ -11,14 +11,14 @@ function MatchIndicator({ score }) {
 
   return (
     <div className="flex items-center gap-3">
-      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/8">
+      <div className="h-2 w-20 overflow-hidden rounded-full border border-[var(--cl-border)] bg-[var(--cl-surface-muted)]">
         <div
-          className="h-full rounded-full bg-[#d6b36a] transition-all"
+          className="h-full rounded-full bg-[var(--cl-accent)] transition-all"
           style={{ width: `${percentage}%` }}
         />
       </div>
 
-      <span className="text-sm font-medium text-[#e5c57c]">
+      <span className="text-sm font-semibold text-[var(--cl-accent)]">
         {percentage}%
       </span>
     </div>
@@ -29,10 +29,10 @@ function SkillChip({ children, muted = false }) {
   return (
     <span
       className={[
-        'rounded-md border px-2.5 py-1 text-[11px]',
+        'rounded-md border px-2.5 py-1 text-[11px] font-medium',
         muted
-          ? 'border-white/7 bg-white/[0.025] text-white/45'
-          : 'border-white/8 bg-white/[0.045] text-white/65',
+          ? 'border-[var(--cl-border)] bg-[var(--cl-surface-muted)] text-[var(--cl-muted)]'
+          : 'border-[var(--cl-border-strong)] bg-[var(--cl-surface-soft)] text-[var(--cl-text-soft)]',
       ].join(' ')}
     >
       {children}
@@ -52,29 +52,29 @@ export default function JobCard({
     recommendation?.missing_required_skills ?? []
 
   return (
-    <article className="group rounded-2xl border border-white/8 bg-[#111111] p-5 transition duration-200 hover:-translate-y-0.5 hover:border-white/14 hover:bg-[#141414]">
+    <article className="group rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-5 shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-[var(--cl-border-strong)] hover:bg-[var(--cl-card-hover)]">
       <div className="flex flex-col gap-5">
         <div className="flex items-start justify-between gap-5">
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               {recommendation?.rank && (
-                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
                   #{recommendation.rank} for you
                 </span>
               )}
 
               {job.source && (
-                <span className="rounded-full border border-white/7 bg-white/[0.025] px-2 py-0.5 text-[10px] text-white/35">
+                <span className="rounded-full border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] px-2.5 py-0.5 text-[10px] font-medium text-[var(--cl-muted)]">
                   {job.source}
                 </span>
               )}
             </div>
 
-            <h3 className="truncate text-lg font-medium tracking-[-0.02em] text-white">
+            <h3 className="truncate text-lg font-semibold tracking-[-0.02em] text-[var(--cl-text)]">
               {job.title}
             </h3>
 
-            <p className="mt-1 text-sm text-white/45">
+            <p className="mt-1 text-sm text-[var(--cl-muted)]">
               {job.company || 'Company not specified'}
               {job.location ? ` · ${job.location}` : ''}
             </p>
@@ -82,7 +82,7 @@ export default function JobCard({
 
           {matchScore !== null && (
             <div className="shrink-0 text-right">
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/30">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
                 Match
               </div>
 
@@ -96,7 +96,7 @@ export default function JobCard({
           <div className="space-y-3">
             {matchedSkills.length > 0 && (
               <div>
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/30">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
                   Matched skills
                 </p>
 
@@ -112,7 +112,7 @@ export default function JobCard({
 
             {missingSkills.length > 0 && (
               <div>
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/30">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
                   Skill gap
                 </p>
 
@@ -127,7 +127,7 @@ export default function JobCard({
                   ))}
 
                   {missingSkills.length > 5 && (
-                    <span className="px-1 py-1 text-[11px] text-white/30">
+                    <span className="px-1 py-1 text-[11px] text-[var(--cl-muted)]">
                       +{missingSkills.length - 5} more
                     </span>
                   )}
@@ -137,12 +137,12 @@ export default function JobCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between border-t border-white/7 pt-4">
-          <div className="flex gap-5 text-xs text-white/35">
+        <div className="flex items-center justify-between border-t border-[var(--cl-border)] pt-4">
+          <div className="flex gap-5 text-xs text-[var(--cl-muted)]">
             {recommendation?.semantic_score !== undefined && (
               <span>
                 Semantic{' '}
-                <strong className="font-medium text-white/55">
+                <strong className="font-semibold text-[var(--cl-text-soft)]">
                   {formatScore(
                     recommendation.semantic_score
                   )}
@@ -154,7 +154,7 @@ export default function JobCard({
               undefined && (
               <span>
                 Skills{' '}
-                <strong className="font-medium text-white/55">
+                <strong className="font-semibold text-[var(--cl-text-soft)]">
                   {formatScore(
                     recommendation.required_skill_score
                   )}
@@ -166,7 +166,7 @@ export default function JobCard({
           <button
             type="button"
             onClick={() => onSelect?.(job)}
-            className="text-xs font-medium text-[#d6b36a] transition group-hover:translate-x-0.5"
+            className="text-xs font-semibold text-[var(--cl-accent)] transition hover:underline group-hover:translate-x-0.5"
           >
             View intelligence →
           </button>

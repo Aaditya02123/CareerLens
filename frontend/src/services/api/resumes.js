@@ -1,3 +1,5 @@
+import { getAuthHeaders, getStoredUser } from './auth'
+
 const API_BASE_URL = 'http://127.0.0.1:8000'
 
 export const CAREERLENS_DEV_USER_ID = 3
@@ -23,11 +25,22 @@ async function readJsonResponse(response) {
 }
 
 export async function fetchUserResumes(
-  userId = CAREERLENS_DEV_USER_ID,
+  userId = null,
 ) {
-  const response = await fetch(
-    `${API_BASE_URL}/users/${userId}/resumes`,
-  )
+  const storedUser = getStoredUser()
+  const activeUserId = storedUser?.id || userId || CAREERLENS_DEV_USER_ID
+
+  const authHeaders = getAuthHeaders()
+  const response = authHeaders
+    ? await fetch(
+        `${API_BASE_URL}/users/${activeUserId}/resumes`,
+        {
+          headers: authHeaders,
+        },
+      )
+    : await fetch(
+        `${API_BASE_URL}/users/${activeUserId}/resumes`,
+      )
 
   return readJsonResponse(response)
 }
@@ -37,32 +50,49 @@ export async function fetchResumeAnalysis(storedFilename) {
     throw new Error('A stored resume filename is required.')
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/resume/${encodeURIComponent(
-      storedFilename,
-    )}/analysis`,
-  )
+  const authHeaders = getAuthHeaders()
+  const response = authHeaders
+    ? await fetch(
+        `${API_BASE_URL}/resume/${encodeURIComponent(
+          storedFilename,
+        )}/analysis`,
+        {
+          headers: authHeaders,
+        },
+      )
+    : await fetch(
+        `${API_BASE_URL}/resume/${encodeURIComponent(
+          storedFilename,
+        )}/analysis`,
+      )
 
   return readJsonResponse(response)
 }
 
 export async function uploadResume(
   file,
-  userId = CAREERLENS_DEV_USER_ID,
+  userId = null,
 ) {
   if (!file) {
     throw new Error('Please select a resume file before uploading.')
   }
 
+  const storedUser = getStoredUser()
+  const activeUserId = storedUser?.id || userId || CAREERLENS_DEV_USER_ID
+
   const formData = new FormData()
   formData.append('file', file)
 
+  const authHeaders = getAuthHeaders()
   const response = await fetch(
     `${API_BASE_URL}/resume?user_id=${encodeURIComponent(
-      userId,
+      activeUserId,
     )}`,
     {
       method: 'POST',
+      headers: {
+        ...(authHeaders || {}),
+      },
       body: formData,
     },
   )

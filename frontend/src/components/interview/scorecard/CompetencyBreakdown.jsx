@@ -8,23 +8,23 @@ export default function CompetencyBreakdown({ competencies }) {
 
   return (
     <section
-      className="rounded-2xl border border-white/8 bg-[#111111] p-5 sm:p-6"
+      className="rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-5 sm:p-6"
       aria-labelledby="competency-breakdown-heading"
     >
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
           Competency breakdown
         </p>
         <h3
           id="competency-breakdown-heading"
-          className="mt-2 text-lg font-medium text-white/90"
+          className="mt-2 text-lg font-medium text-[var(--cl-text)]"
         >
           Where your answers are strongest
         </h3>
       </div>
 
       {safeCompetencies.length === 0 ? (
-        <p className="mt-5 rounded-xl border border-white/8 bg-white/[0.02] p-4 text-sm leading-6 text-white/45">
+        <p className="mt-5 rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-4 text-sm leading-6 text-[var(--cl-muted)]">
           Competency scores will appear after answers are evaluated.
         </p>
       ) : (
@@ -39,23 +39,23 @@ export default function CompetencyBreakdown({ competencies }) {
               <div key={competency?.competency_reference || scoreLabel}>
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div>
-                    <h4 className="text-sm font-medium text-white/80">
+                    <h4 className="text-sm font-medium text-[var(--cl-text)]">
                       {competency?.competency_reference || 'Unnamed competency'}
                     </h4>
-                    <p className="mt-1 text-xs text-white/35">
+                    <p className="mt-1 text-xs text-[var(--cl-faint)]">
                       {competency?.evaluated_answer_count ?? 0} answer
                       {competency?.evaluated_answer_count === 1 ? '' : 's'}
                       {' · '}
                       {competency?.competency_weight_percent ?? '—'}% weight
                     </p>
                   </div>
-                  <span className="text-sm font-medium text-[#e5c57c]/85">
+                  <span className="text-sm font-medium text-[var(--cl-accent)]/85">
                     {scoreLabel}
                   </span>
                 </div>
 
                 <div
-                  className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"
+                  className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--cl-border)]"
                   role="progressbar"
                   aria-label={`${competency?.competency_reference || 'Competency'} score`}
                   aria-valuemin="0"
@@ -63,7 +63,7 @@ export default function CompetencyBreakdown({ competencies }) {
                   aria-valuenow={hasScore ? Number(competency.score) : 0}
                 >
                   <div
-                    className="h-full rounded-full bg-[#d6b36a] transition-[width]"
+                    className="h-full rounded-full bg-[var(--cl-accent)] transition-[width]"
                     style={{ width: scoreWidth(competency?.score) }}
                   />
                 </div>

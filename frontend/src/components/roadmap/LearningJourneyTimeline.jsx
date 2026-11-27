@@ -6,18 +6,18 @@ const PROGRESS_LABELS = {
 
 function getProgressStyles(progressStatus) {
   if (progressStatus === 'completed') {
-    return 'border-emerald-300/25 bg-emerald-300/[0.06] text-emerald-100/80'
+    return 'border-[var(--cl-success)]/30 bg-[var(--cl-success-soft)] text-[var(--cl-success)]'
   }
 
   if (progressStatus === 'in_progress') {
-    return 'border-[#d6b36a]/35 bg-[#d6b36a]/[0.07] text-[#f0d18b]'
+    return 'border-[var(--cl-accent)]/35 bg-[var(--cl-accent-soft)] text-[var(--cl-accent)]'
   }
 
   if (progressStatus === 'not_started') {
-    return 'border-white/10 bg-white/[0.025] text-white/55'
+    return 'border-[var(--cl-border)] bg-[var(--cl-surface-muted)] text-[var(--cl-text-soft)]'
   }
 
-  return 'border-white/10 bg-white/[0.015] text-white/40'
+  return 'border-[var(--cl-border)] bg-[var(--cl-surface-muted)] text-[var(--cl-muted)]'
 }
 
 function getProgressLabel(progressStatus) {
@@ -41,23 +41,23 @@ export default function LearningJourneyTimeline({ items }) {
 
   return (
     <section
-      className="mb-5 rounded-2xl border border-white/8 bg-[#111111] p-5"
+      className="mb-5 rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-5"
       aria-labelledby="learning-journey-heading"
       data-testid="learning-journey-timeline"
     >
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
           Learning journey
         </p>
 
         <h3
           id="learning-journey-heading"
-          className="mt-2 text-lg font-medium text-white/90"
+          className="mt-2 text-lg font-medium text-[var(--cl-text)]"
         >
           Your roadmap path
         </h3>
 
-        <p className="mt-2 text-sm leading-6 text-white/45">
+        <p className="mt-2 text-sm leading-6 text-[var(--cl-muted)]">
           This overview follows the roadmap order. Search, sorting, and
           progress filters below change the detailed list without changing
           the journey sequence.
@@ -65,7 +65,7 @@ export default function LearningJourneyTimeline({ items }) {
       </div>
 
       {safeItems.length === 0 ? (
-        <p className="mt-5 rounded-xl border border-white/8 bg-white/[0.02] p-4 text-sm leading-6 text-white/45">
+        <p className="mt-5 rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-4 text-sm leading-6 text-[var(--cl-muted)]">
           Your learning journey will appear here when roadmap skills are available.
         </p>
       ) : (
@@ -93,7 +93,7 @@ export default function LearningJourneyTimeline({ items }) {
 
                   {!isLast && (
                     <span
-                      className="mt-1 min-h-12 w-px flex-1 bg-white/10"
+                      className="mt-1 min-h-12 w-px flex-1 bg-[var(--cl-border)]"
                       aria-hidden="true"
                     />
                   )}
@@ -102,7 +102,7 @@ export default function LearningJourneyTimeline({ items }) {
                 <div className="min-w-0 flex-1 pb-6">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <h4 className="break-words text-sm font-medium text-white/85">
+                      <h4 className="break-words text-sm font-medium text-[var(--cl-text)]">
                         {item?.skill || 'Unnamed skill'}
                       </h4>
 
@@ -116,17 +116,17 @@ export default function LearningJourneyTimeline({ items }) {
                           {progressLabel}
                         </span>
 
-                        <span className="rounded-full border border-white/10 px-2 py-1 text-white/45">
+                        <span className="rounded-full border border-[var(--cl-border)] px-2 py-1 text-[var(--cl-muted)]">
                           {item?.priority || 'unknown'} priority
                         </span>
 
-                        <span className="rounded-full border border-white/10 px-2 py-1 text-white/45">
+                        <span className="rounded-full border border-[var(--cl-border)] px-2 py-1 text-[var(--cl-muted)]">
                           {item?.status || 'unknown'} gap
                         </span>
                       </div>
                     </div>
 
-                    <span className="text-xs text-white/40">
+                    <span className="text-xs text-[var(--cl-muted)]">
                       {getEffortLabel(item)}
                     </span>
                   </div>

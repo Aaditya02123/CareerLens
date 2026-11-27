@@ -2,6 +2,7 @@ import CompetencyBreakdown from './CompetencyBreakdown'
 import InterviewFeedbackSection from './InterviewFeedbackSection'
 import QuestionEvaluationList from './QuestionEvaluationList'
 import ScorecardOverview from './ScorecardOverview'
+import ProctoringTimelineBanner from '../ProctoringTimelineBanner'
 
 export default function InterviewScorecard({
   scorecard,
@@ -27,6 +28,7 @@ export default function InterviewScorecard({
 
   return (
     <div className="space-y-5">
+      {session?.id && <ProctoringTimelineBanner sessionId={session.id} />}
       <ScorecardOverview scorecard={scorecard} session={session} />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">

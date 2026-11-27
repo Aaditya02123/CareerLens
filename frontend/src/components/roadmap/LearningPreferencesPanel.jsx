@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useAuth } from '../../context/AuthContext'
 
 import {
   fetchLearningPreferences,
@@ -83,6 +84,9 @@ export default function LearningPreferencesPanel({
   userId,
   onSaved,
 }) {
+  const { user } = useAuth()
+  const activeUserId = user?.id || userId
+
   const [form, setForm] = useState(getDefaultForm)
   const [isSaved, setIsSaved] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -94,9 +98,9 @@ export default function LearningPreferencesPanel({
   const requestIdRef = useRef(0)
 
   const loadPreferences = useCallback(async () => {
-    if (!userId) {
+    if (!activeUserId) {
       setLoading(false)
-      setLoadError('A development user is required for preferences.')
+      setForm(getDefaultForm())
       return
     }
 
@@ -106,7 +110,7 @@ export default function LearningPreferencesPanel({
     setSuccessMessage('')
 
     try {
-      const response = await fetchLearningPreferences(userId)
+      const response = await fetchLearningPreferences(activeUserId)
 
       if (requestId !== requestIdRef.current) return
 
@@ -124,7 +128,7 @@ export default function LearningPreferencesPanel({
         setLoading(false)
       }
     }
-  }, [userId])
+  }, [activeUserId])
 
   useEffect(() => {
     setForm(getDefaultForm())
@@ -175,7 +179,7 @@ export default function LearningPreferencesPanel({
     setSaving(true)
 
     try {
-      const response = await saveLearningPreferences(userId, payload)
+      const response = await saveLearningPreferences(activeUserId, payload)
 
       setForm(formFromResponse(response))
       setIsSaved(response?.is_saved === true)
@@ -196,21 +200,21 @@ export default function LearningPreferencesPanel({
 
   return (
     <section
-      className="mt-6 rounded-2xl border border-white/8 bg-[#111111] p-5"
+      className="mt-6 rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-5"
       aria-labelledby="learning-preferences-heading"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
             Personalize your pace
           </p>
           <h2
             id="learning-preferences-heading"
-            className="mt-2 text-lg font-medium text-white/90"
+            className="mt-2 text-lg font-medium text-[var(--cl-text)]"
           >
             Learning preferences
           </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/45">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--cl-muted)]">
             Set your availability so CareerLens can project a realistic
             learning schedule. These preferences do not change roadmap
             priorities or estimates.
@@ -218,7 +222,7 @@ export default function LearningPreferencesPanel({
         </div>
 
         {!loading && !loadError && (
-          <span className="rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-white/45">
+          <span className="rounded-full border border-[var(--cl-border)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--cl-muted)]">
             {isSaved ? 'Saved preferences' : 'Using defaults'}
           </span>
         )}
@@ -226,7 +230,7 @@ export default function LearningPreferencesPanel({
 
       {loading ? (
         <div
-          className="mt-5 h-28 animate-pulse rounded-xl bg-white/[0.04]"
+          className="mt-5 h-28 animate-pulse rounded-xl bg-[var(--cl-surface-soft)]"
           aria-label="Loading learning preferences"
         />
       ) : loadError ? (
@@ -235,7 +239,7 @@ export default function LearningPreferencesPanel({
           <button
             type="button"
             onClick={loadPreferences}
-            className="mt-3 rounded-lg border border-white/10 px-3 py-2 text-xs text-white/65 transition hover:border-[#d6b36a]/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d6b36a]/70"
+            className="mt-3 rounded-lg border border-[var(--cl-border)] px-3 py-2 text-xs text-[var(--cl-text-soft)] transition hover:border-[var(--cl-accent)] hover:text-[var(--cl-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cl-accent)]"
           >
             Try again
           </button>
@@ -246,7 +250,7 @@ export default function LearningPreferencesPanel({
             <div>
               <label
                 htmlFor="learning-weekly-hours"
-                className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35"
+                className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]"
               >
                 Weekly study hours
               </label>
@@ -263,11 +267,11 @@ export default function LearningPreferencesPanel({
                 }
                 aria-invalid={Boolean(validationErrors.weeklyHours)}
                 aria-describedby="learning-weekly-hours-help learning-weekly-hours-error"
-                className="mt-2 w-full rounded-lg border border-white/10 bg-[#0b0b0b] px-3 py-2.5 text-sm text-white/75 outline-none transition focus:border-[#d6b36a]/60"
+                className="mt-2 w-full rounded-lg border border-[var(--cl-border)] bg-[var(--cl-input-bg)] px-3 py-2.5 text-sm text-[var(--cl-text-soft)] outline-none transition focus:border-[var(--cl-accent)]"
               />
               <p
                 id="learning-weekly-hours-help"
-                className="mt-2 text-xs text-white/35"
+                className="mt-2 text-xs text-[var(--cl-faint)]"
               >
                 Choose between 1 and 168 hours per week.
               </p>
@@ -285,7 +289,7 @@ export default function LearningPreferencesPanel({
             <div>
               <label
                 htmlFor="learning-target-date"
-                className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35"
+                className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]"
               >
                 Target completion date
               </label>
@@ -304,11 +308,11 @@ export default function LearningPreferencesPanel({
                   validationErrors.targetCompletionDate,
                 )}
                 aria-describedby="learning-target-date-help learning-target-date-error"
-                className="mt-2 w-full rounded-lg border border-white/10 bg-[#0b0b0b] px-3 py-2.5 text-sm text-white/75 outline-none transition focus:border-[#d6b36a]/60"
+                className="mt-2 w-full rounded-lg border border-[var(--cl-border)] bg-[var(--cl-input-bg)] px-3 py-2.5 text-sm text-[var(--cl-text-soft)] outline-none transition focus:border-[var(--cl-accent)]"
               />
               <p
                 id="learning-target-date-help"
-                className="mt-2 text-xs text-white/35"
+                className="mt-2 text-xs text-[var(--cl-faint)]"
               >
                 Optional. Leave blank when you do not have a target date.
               </p>
@@ -325,14 +329,14 @@ export default function LearningPreferencesPanel({
           </div>
 
           <fieldset className="mt-5">
-            <legend className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+            <legend className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
               Learning pace
             </legend>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {PACE_OPTIONS.map((option) => (
                 <label
                   key={option.value}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2.5 text-sm text-white/60 transition has-[:checked]:border-[#d6b36a]/45 has-[:checked]:text-[#f0d18b]"
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] px-3 py-2.5 text-sm text-[var(--cl-text-soft)] transition has-[:checked]:border-[var(--cl-accent)]/50 has-[:checked]:text-[var(--cl-accent)]"
                 >
                   <input
                     type="radio"
@@ -342,7 +346,7 @@ export default function LearningPreferencesPanel({
                     onChange={(event) =>
                       updateField('pace', event.target.value)
                     }
-                    className="accent-[#d6b36a]"
+                    className="accent-[var(--cl-accent)]"
                   />
                   {option.label}
                 </label>
@@ -351,17 +355,17 @@ export default function LearningPreferencesPanel({
           </fieldset>
 
           <fieldset className="mt-5">
-            <legend className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+            <legend className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
               Preferred resource formats
             </legend>
-            <p className="mt-2 text-xs text-white/35">
+            <p className="mt-2 text-xs text-[var(--cl-faint)]">
               Leave all unchecked to accept every curated format.
             </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {RESOURCE_TYPES.map((resourceType) => (
                 <label
                   key={resourceType.value}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2.5 text-sm text-white/60 transition has-[:checked]:border-[#d6b36a]/45 has-[:checked]:text-[#f0d18b]"
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] px-3 py-2.5 text-sm text-[var(--cl-text-soft)] transition has-[:checked]:border-[var(--cl-accent)]/50 has-[:checked]:text-[var(--cl-accent)]"
                 >
                   <input
                     type="checkbox"
@@ -371,7 +375,7 @@ export default function LearningPreferencesPanel({
                     onChange={() =>
                       toggleResourceType(resourceType.value)
                     }
-                    className="accent-[#d6b36a]"
+                    className="accent-[var(--cl-accent)]"
                   />
                   {resourceType.label}
                 </label>
@@ -380,13 +384,13 @@ export default function LearningPreferencesPanel({
           </fieldset>
 
           {saveError && (
-            <p className="mt-4 text-sm leading-5 text-red-200/75" role="alert">
+            <p className="mt-4 text-sm leading-5 text-[var(--cl-danger)]" role="alert">
               {saveError}
             </p>
           )}
 
           {successMessage && (
-            <p className="mt-4 text-sm leading-5 text-emerald-100/75" role="status">
+            <p className="mt-4 text-sm leading-5 text-[var(--cl-success)]" role="status">
               {successMessage}
             </p>
           )}
@@ -394,7 +398,7 @@ export default function LearningPreferencesPanel({
           <button
             type="submit"
             disabled={saving}
-            className="mt-5 rounded-lg bg-[#d6b36a] px-4 py-2.5 text-xs font-semibold text-[#17130b] transition hover:bg-[#e5c57c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f0d18b]/80 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-5 rounded-lg bg-[var(--cl-accent)] px-4 py-2.5 text-xs font-semibold text-[var(--cl-accent-contrast)] transition hover:bg-[var(--cl-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cl-accent)]/80 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? 'Saving preferences...' : 'Save preferences'}
           </button>

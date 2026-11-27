@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -15,6 +16,7 @@ from app.services.interview_blueprint_service import (
     generate_interview_blueprint,
 )
 from app.services.llm.ollama_generator import OllamaProviderUnavailableError
+from app.services.llm.observability import GenerationFailureCategory
 
 
 def _provider_payload(config: InterviewBlueprintConfig) -> str:
@@ -182,6 +184,61 @@ def test_generation_validates_provider_output_and_persists(context):
     assert result.id == 7
     assert repository.created["question_count"] == 2
     assert len(repository.created["questions"]) == 2
+
+
+def test_generation_logs_safe_stage_timings(context, caplog):
+    config, _ = context
+    caplog.set_level(logging.INFO, logger="app.llm")
+
+    generate_interview_blueprint(
+        resume_id=1,
+        job_id=2,
+        session=object(),
+        config=config,
+        provider=FakeProvider(_provider_payload(config)),
+    )
+
+    events = [json.loads(record.message) for record in caplog.records]
+    success = next(
+        event
+        for event in events
+        if event["event"] == "llm_generation" and event["success"]
+    )
+    assert success["operation"] == "blueprint"
+    assert success["provider_name"] == "FakeProvider"
+    assert success["attempt"] == 1
+    assert success["json_parse_ms"] >= 0
+    assert success["pydantic_validation_ms"] >= 0
+    assert success["grounding_validation_ms"] >= 0
+    assert success["total_operation_ms"] >= 0
+    assert "Build Python services." not in caplog.text
+
+
+def test_retry_logs_failure_category_and_exhaustion(context, caplog):
+    config, _ = context
+    caplog.set_level(logging.INFO, logger="app.llm")
+
+    with pytest.raises(InterviewBlueprintProviderError):
+        generate_interview_blueprint(
+            resume_id=1,
+            job_id=2,
+            session=object(),
+            config=config,
+            provider=SequenceProvider(["not json", "still not json"]),
+        )
+
+    events = [json.loads(record.message) for record in caplog.records]
+    retry = next(
+        event for event in events if event["event"] == "llm_generation_retry"
+    )
+    final = next(
+        event
+        for event in events
+        if event["event"] == "llm_generation" and not event["success"]
+    )
+    assert retry["failure_category"] == GenerationFailureCategory.MALFORMED_JSON
+    assert final["failure_category"] == GenerationFailureCategory.GENERATION_RETRY_EXHAUSTED
+    assert final["root_failure_category"] == GenerationFailureCategory.MALFORMED_JSON
 
 
 def test_provider_must_ground_resume_evidence(context):

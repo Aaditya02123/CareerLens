@@ -1,3 +1,5 @@
+import { getAuthHeaders } from './auth'
+
 const API_BASE_URL = 'http://127.0.0.1:8000'
 
 async function readJsonResponse(response, fallbackMessage) {
@@ -30,12 +32,16 @@ function validateAnswerId(answerId) {
 
 export async function fetchInterviewExecutionSession(sessionId) {
   validateSessionId(sessionId)
+  const authHeaders = getAuthHeaders()
 
-  const response = await fetch(
-    `${API_BASE_URL}/interview-preparation/sessions/${encodeURIComponent(
-      sessionId,
-    )}`,
-  )
+  const response = authHeaders
+    ? await fetch(
+        `${API_BASE_URL}/interview-preparation/sessions/${encodeURIComponent(sessionId)}`,
+        { headers: authHeaders },
+      )
+    : await fetch(
+        `${API_BASE_URL}/interview-preparation/sessions/${encodeURIComponent(sessionId)}`,
+      )
 
   return readJsonResponse(
     response,
@@ -45,12 +51,16 @@ export async function fetchInterviewExecutionSession(sessionId) {
 
 export async function fetchInterviewScorecard(sessionId) {
   validateSessionId(sessionId)
+  const authHeaders = getAuthHeaders()
 
-  const response = await fetch(
-    `${API_BASE_URL}/interview-preparation/sessions/${encodeURIComponent(
-      sessionId,
-    )}/scorecard`,
-  )
+  const response = authHeaders
+    ? await fetch(
+        `${API_BASE_URL}/interview-preparation/sessions/${encodeURIComponent(sessionId)}/scorecard`,
+        { headers: authHeaders },
+      )
+    : await fetch(
+        `${API_BASE_URL}/interview-preparation/sessions/${encodeURIComponent(sessionId)}/scorecard`,
+      )
 
   return readJsonResponse(
     response,
@@ -64,12 +74,16 @@ export async function fetchInterviewAnswerEvaluation(
 ) {
   validateSessionId(sessionId)
   validateAnswerId(answerId)
+  const authHeaders = getAuthHeaders()
 
-  const response = await fetch(
-    `${API_BASE_URL}/interview-preparation/sessions/${encodeURIComponent(
-      sessionId,
-    )}/answers/${encodeURIComponent(answerId)}/evaluation`,
-  )
+  const response = authHeaders
+    ? await fetch(
+        `${API_BASE_URL}/interview-preparation/sessions/${encodeURIComponent(sessionId)}/answers/${encodeURIComponent(answerId)}/evaluation`,
+        { headers: authHeaders },
+      )
+    : await fetch(
+        `${API_BASE_URL}/interview-preparation/sessions/${encodeURIComponent(sessionId)}/answers/${encodeURIComponent(answerId)}/evaluation`,
+      )
 
   return readJsonResponse(
     response,
@@ -80,12 +94,18 @@ export async function fetchInterviewAnswerEvaluation(
 export async function evaluateInterviewAnswer(sessionId, answerId) {
   validateSessionId(sessionId)
   validateAnswerId(answerId)
+  const authHeaders = getAuthHeaders()
+
+  const options = {
+    method: 'POST',
+    ...(authHeaders ? { headers: authHeaders } : {}),
+  }
 
   const response = await fetch(
     `${API_BASE_URL}/interview-preparation/sessions/${encodeURIComponent(
       sessionId,
     )}/answers/${encodeURIComponent(answerId)}/evaluate`,
-    { method: 'POST' },
+    options,
   )
 
   return readJsonResponse(

@@ -16,14 +16,14 @@ function getStatusLabel(status) {
 
 function getStatusStyles(status) {
   if (status === 'complete') {
-    return 'border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-100/80'
+    return 'border-[var(--cl-success)]/30 bg-[var(--cl-success-soft)] text-[var(--cl-success)]'
   }
 
   if (status === 'partial') {
-    return 'border-[#d6b36a]/30 bg-[#d6b36a]/[0.06] text-[#f0d18b]'
+    return 'border-[var(--cl-accent)]/30 bg-[var(--cl-accent-soft)] text-[var(--cl-accent)]'
   }
 
-  return 'border-white/10 bg-white/[0.025] text-white/55'
+  return 'border-[var(--cl-border)] bg-[var(--cl-surface-muted)] text-[var(--cl-text-soft)]'
 }
 
 export default function ScorecardStatus({ scorecardStatus, sessionStatus }) {
@@ -35,7 +35,7 @@ export default function ScorecardStatus({ scorecardStatus, sessionStatus }) {
         {getStatusLabel(scorecardStatus)}
       </span>
 
-      <span className="rounded-full border border-white/10 bg-white/[0.02] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-white/50">
+      <span className="rounded-full border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--cl-muted)]">
         {SESSION_STATUS_LABELS[sessionStatus] || 'Session status unavailable'}
       </span>
     </div>

@@ -30,6 +30,8 @@ env/
 *.sqlite3
 *.db
 data/
+storage/
+backend/storage/
 uploads/
 recordings/
 

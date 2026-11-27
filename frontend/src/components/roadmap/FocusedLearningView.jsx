@@ -33,18 +33,18 @@ export default function FocusedLearningView({
 
   return (
     <section
-      className="mt-6 rounded-2xl border border-[#d6b36a]/25 bg-[#111111] p-5 sm:p-7"
+      className="mt-6 rounded-2xl border border-[var(--cl-accent-soft)] bg-[var(--cl-surface)] p-5 sm:p-7"
       aria-labelledby="focused-learning-heading"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
             Focused learning
           </p>
 
           <h2
             id="focused-learning-heading"
-            className="mt-2 text-2xl font-medium tracking-[-0.03em] text-white/90"
+            className="mt-2 text-2xl font-medium tracking-[-0.03em] text-[var(--cl-text)]"
           >
             {item.skill || 'Unnamed skill'}
           </h2>
@@ -53,14 +53,14 @@ export default function FocusedLearningView({
         <button
           type="button"
           onClick={onBack}
-          className="rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-white/65 transition hover:border-[#d6b36a]/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d6b36a]/70"
+          className="rounded-lg border border-[var(--cl-border)] px-3 py-2 text-xs font-medium text-[var(--cl-text-soft)] transition hover:border-[var(--cl-accent)] hover:text-[var(--cl-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cl-accent)]"
         >
           Back to roadmap
         </button>
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.13em] text-white/55">
+        <span className="rounded-full border border-[var(--cl-border)] px-2 py-1 text-[10px] uppercase tracking-[0.13em] text-[var(--cl-text-soft)]">
           {item.priority || 'unknown'} priority
         </span>
 
@@ -74,33 +74,33 @@ export default function FocusedLearningView({
         </span>
       </div>
 
-      <p className="mt-5 max-w-2xl text-sm leading-6 text-white/55">
+      <p className="mt-5 max-w-2xl text-sm leading-6 text-[var(--cl-text-soft)]">
         {item.reason || 'No reason was provided.'}
       </p>
 
-      <div className="mt-6 rounded-xl border border-white/8 bg-white/[0.025] p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+      <div className="mt-6 rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-4">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
           Estimated effort
         </p>
 
         {effortAvailable ? (
-          <p className="mt-2 text-lg font-medium text-[#e5c57c]/90">
+          <p className="mt-2 text-lg font-medium text-[var(--cl-accent)]/90">
             {item.minimum_hours}–{item.maximum_hours} hours
           </p>
         ) : (
-          <p className="mt-2 text-sm text-white/45">
+          <p className="mt-2 text-sm text-[var(--cl-muted)]">
             Estimate unavailable
           </p>
         )}
       </div>
 
-      <div className="mt-6 rounded-xl border border-white/8 bg-white/[0.02] p-4">
+      <div className="mt-6 rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]">
               Current progress
             </p>
-            <p className="mt-2 text-sm text-white/60">
+            <p className="mt-2 text-sm text-[var(--cl-text-soft)]">
               {item.progress_status === 'completed'
                 ? 'Completed'
                 : item.progress_status === 'in_progress'
@@ -122,7 +122,7 @@ export default function FocusedLearningView({
               onProgressChange(item.id, event.target.value)
             }
             disabled={isUpdating}
-            className="min-w-[160px] rounded-lg border border-white/10 bg-[#0b0b0b] px-3 py-2 text-xs text-white/75 outline-none transition focus:border-[#d6b36a]/60 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-w-[160px] rounded-lg border border-[var(--cl-border)] bg-[var(--cl-input-bg)] px-3 py-2 text-xs text-[var(--cl-text-soft)] outline-none transition focus:border-[var(--cl-accent)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="not_started">Not started</option>
             <option value="in_progress">In progress</option>
@@ -131,7 +131,7 @@ export default function FocusedLearningView({
         </div>
 
         {isUpdating && (
-          <p className="mt-3 text-xs text-white/35">Saving progress...</p>
+          <p className="mt-3 text-xs text-[var(--cl-faint)]">Saving progress...</p>
         )}
 
         {updateError && (

@@ -1,3 +1,5 @@
+import { getAuthHeaders } from './auth'
+
 const API_BASE_URL = 'http://127.0.0.1:8000'
 
 async function readJsonResponse(response) {
@@ -50,7 +52,12 @@ export async function fetchJobs({
   params.set('offset', String(offset))
 
   const response = await fetch(
-    `${API_BASE_URL}/jobs?${params.toString()}`
+    `${API_BASE_URL}/jobs?${params.toString()}`,
+    {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    },
   )
 
   return readJsonResponse(response)
@@ -62,7 +69,12 @@ export async function fetchJob(jobId) {
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}`
+    `${API_BASE_URL}/jobs/${encodeURIComponent(jobId)}`,
+    {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    },
   )
 
   return readJsonResponse(response)
@@ -79,7 +91,12 @@ export async function fetchJobRecommendations(
   const response = await fetch(
     `${API_BASE_URL}/recommendations/resumes/${encodeURIComponent(
       resumeId
-    )}?limit=${encodeURIComponent(limit)}`
+    )}?limit=${encodeURIComponent(limit)}`,
+    {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    },
   )
 
   return readJsonResponse(response)
@@ -93,7 +110,12 @@ export async function fetchRankedJobs(resumeId, limit = 10) {
   const response = await fetch(
     `${API_BASE_URL}/matching/resumes/${encodeURIComponent(
       resumeId
-    )}/jobs?limit=${encodeURIComponent(limit)}`
+    )}/jobs?limit=${encodeURIComponent(limit)}`,
+    {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    },
   )
 
   return readJsonResponse(response)
@@ -114,7 +136,12 @@ export async function fetchMatchExplanation(
   const response = await fetch(
     `${API_BASE_URL}/matching/resumes/${encodeURIComponent(
       resumeId
-    )}/jobs/${encodeURIComponent(jobId)}/explanation`
+    )}/jobs/${encodeURIComponent(jobId)}/explanation`,
+    {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    },
   )
 
   return readJsonResponse(response)
@@ -135,7 +162,12 @@ export async function fetchAiJobExplanation(
   const response = await fetch(
     `${API_BASE_URL}/matching/resumes/${encodeURIComponent(
       resumeId
-    )}/jobs/${encodeURIComponent(jobId)}/ai-explanation`
+    )}/jobs/${encodeURIComponent(jobId)}/ai-explanation`,
+    {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    },
   )
 
   return readJsonResponse(response)

@@ -14,16 +14,26 @@ from app.services.llm.ollama_generator import (
 def test_ollama_provider_uses_configured_model():
     provider = OllamaGenerationProvider(
         base_url="http://127.0.0.1:11434",
-        model="qwen3.5:9b",
+        model="qwen3.5:4b",
     )
 
-    assert provider.model == "qwen3.5:9b"
+    assert provider.model == "qwen3.5:4b"
     assert provider.base_url == "http://127.0.0.1:11434"
+
+
+def test_ollama_provider_reads_model_and_context_from_environment(monkeypatch):
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen3.5:4b")
+    monkeypatch.setenv("OLLAMA_NUM_CTX", "8192")
+
+    provider = OllamaGenerationProvider()
+
+    assert provider.model == "qwen3.5:4b"
+    assert provider.num_ctx == 8192
 
 
 def test_ollama_provider_can_be_typed_as_generation_provider():
     provider = OllamaGenerationProvider(
-        model="qwen3.5:9b",
+        model="qwen3.5:4b",
     )
 
     assert hasattr(provider, "generate")
@@ -67,6 +77,7 @@ def test_structured_generation_sends_native_json_schema(monkeypatch):
     assert result == '{"ok": true}'
     assert captured["body"]["format"] == schema
     assert captured["body"]["options"]["temperature"] == 0
+    assert captured["body"]["options"]["num_ctx"] == 8192
     assert captured["timeout"] == 17
 
 

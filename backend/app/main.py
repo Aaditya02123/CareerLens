@@ -18,6 +18,9 @@ from app.api.interview_blueprints import (
 from app.api.interview_execution import (
     router as interview_execution_router,
 )
+from app.api.interview_proctoring import (
+    router as interview_proctoring_router,
+)
 from app.api.adaptive_interview import (
     router as adaptive_interview_router,
 )
@@ -69,7 +72,7 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:5173",
     ],
-    allow_methods=["GET", "POST", "PUT", "PATCH"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -101,3 +104,4 @@ app.include_router(interview_blueprints_router, dependencies=_authenticated)
 app.include_router(interview_execution_router, dependencies=_authenticated)
 app.include_router(adaptive_interview_router, dependencies=_authenticated)
 app.include_router(interview_evaluation_scorecard_router, dependencies=_authenticated)
+app.include_router(interview_proctoring_router, dependencies=_authenticated)

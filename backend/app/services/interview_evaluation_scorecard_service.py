@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from pydantic import ValidationError
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.models.interview_scorecard import (
     AnswerEvaluationResponse,
     CompetencyScoreResponse,
+    CriterionEvaluationResponse,
     InterviewAnswerEvaluation,
     InterviewScorecardResponse,
     ProviderAnswerEvaluation,
@@ -36,7 +38,16 @@ from app.services.llm.generator import LLMGenerationProvider
 from app.services.llm.ollama_generator import get_ollama_generation_provider
 from app.services.llm.structured import (
     generate_structured_text,
-    parse_json_object,
+    parse_and_validate_model,
+)
+from app.services.llm.observability import (
+    GenerationFailureCategory,
+    classify_generation_error,
+    elapsed_ms,
+    generation_context,
+    log_generation_event,
+    new_correlation_id,
+    provider_status_code,
 )
 
 
@@ -58,6 +69,17 @@ class InterviewEvaluationError(ValueError):
 
 class InterviewEvaluationProviderError(RuntimeError):
     """Raised when provider output is malformed or unusable."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        failure_category: GenerationFailureCategory = (
+            GenerationFailureCategory.UNKNOWN_GENERATION_ERROR
+        ),
+    ) -> None:
+        super().__init__(message)
+        self.failure_category = failure_category
 
 
 def build_answer_evaluation_prompt(
@@ -130,13 +152,32 @@ def build_answer_evaluation_prompt(
     )
 
 
-def _parse_provider_output(raw: str) -> ProviderAnswerEvaluation:
+def _parse_provider_output_with_timings(
+    raw: str,
+) -> tuple[ProviderAnswerEvaluation, float, float]:
     try:
-        return ProviderAnswerEvaluation.model_validate(parse_json_object(raw))
-    except (ValidationError, ValueError, TypeError) as error:
+        result = parse_and_validate_model(raw, ProviderAnswerEvaluation)
+    except ValidationError as error:
         raise InterviewEvaluationProviderError(
-            "The evaluation provider returned invalid structured data."
+            "The evaluation provider returned schema-invalid data.",
+            failure_category=GenerationFailureCategory.SCHEMA_VALIDATION_FAILED,
         ) from error
+    except (ValueError, TypeError) as error:
+        raise InterviewEvaluationProviderError(
+            "The evaluation provider returned malformed JSON.",
+            failure_category=GenerationFailureCategory.MALFORMED_JSON,
+        ) from error
+
+    return (
+        result.value,
+        result.json_parse_ms,
+        result.pydantic_validation_ms,
+    )
+
+
+def _parse_provider_output(raw: str) -> ProviderAnswerEvaluation:
+    payload, _, _ = _parse_provider_output_with_timings(raw)
+    return payload
 
 
 def _unique_strings(items: list[str]) -> list[str]:
@@ -158,7 +199,25 @@ def _response(
     parent_question: Any | None = None,
     parent_answer: Any | None = None,
 ) -> AnswerEvaluationResponse:
-    response = AnswerEvaluationResponse.model_validate(evaluation)
+    response = AnswerEvaluationResponse(
+        id=evaluation.id,
+        session_id=evaluation.session_id,
+        answer_id=evaluation.answer_id,
+        question_id=evaluation.question_id,
+        competency_reference=evaluation.competency_reference,
+        weighted_score=evaluation.weighted_score,
+        strengths=list(evaluation.strengths or []),
+        improvement_areas=list(evaluation.improvement_areas or []),
+        actionable_feedback=list(evaluation.actionable_feedback or []),
+        evaluation_status=evaluation.evaluation_status,
+        criteria=[
+            CriterionEvaluationResponse.model_validate(item)
+            for item in (getattr(evaluation, "criteria", None) or [])
+        ],
+        created_at=evaluation.created_at,
+        updated_at=evaluation.updated_at,
+        provider_name=evaluation.provider_name,
+    )
     if answer is None or question is None:
         return response
 
@@ -418,7 +477,7 @@ class InterviewEvaluationScorecardService:
             answer_id,
         )
         if existing is not None:
-            return _response(existing)
+            return _response_for_session(existing, session_record)
 
         question = next(
             (
@@ -533,41 +592,133 @@ class InterviewEvaluationScorecardService:
             rollback()
         active_provider = provider or get_ollama_generation_provider()
         provider_name = type(active_provider).__name__
+        correlation_id = new_correlation_id()
+        operation_started_at = time.perf_counter()
         payload = None
         criterion_map = None
-        for attempt in range(2):
+        for attempt_index in range(2):
+            attempt = attempt_index + 1
             attempt_prompt = prompt
-            if attempt:
+            retry_reason = None
+            if attempt_index:
                 attempt_prompt += (
                     "\n\nYour previous response was rejected. Return one corrected "
                     "JSON object only. Evaluate every configured criterion exactly "
                     "once, use scores from 0 to 5, and include evidence excerpts "
                     "that occur verbatim in the submitted answer."
                 )
-            raw = generate_structured_text(
-                active_provider,
-                system_prompt=(
-                    "You are a careful CareerLens interview evaluator. "
-                    "Return only the requested evidence-grounded JSON."
-                ),
-                prompt=attempt_prompt,
-                response_schema=ProviderAnswerEvaluation.model_json_schema(),
-            )
+                retry_reason = "previous_attempt_rejected"
+            attempt_started_at = time.perf_counter()
+            provider_wait_ms = None
+            json_parse_ms = None
+            pydantic_validation_ms = None
+            grounding_validation_ms = None
             try:
-                candidate = _parse_provider_output(raw)
-                candidate_criteria = _validate_provider_payload(
-                    candidate,
-                    answer=answer,
-                    question=question,
-                    competency=competency,
-                    criteria=criteria,
-                )
+                with generation_context(
+                    operation="evaluation",
+                    correlation_id=correlation_id,
+                    attempt=attempt,
+                    provider=active_provider,
+                    retry_reason=retry_reason,
+                ):
+                    provider_started_at = time.perf_counter()
+                    raw = generate_structured_text(
+                        active_provider,
+                        system_prompt=(
+                            "You are a careful CareerLens interview evaluator. "
+                            "Return only the requested evidence-grounded JSON."
+                        ),
+                        prompt=attempt_prompt,
+                        response_schema=ProviderAnswerEvaluation.model_json_schema(),
+                    )
+                    provider_wait_ms = elapsed_ms(provider_started_at)
+                    (
+                        candidate,
+                        json_parse_ms,
+                        pydantic_validation_ms,
+                    ) = _parse_provider_output_with_timings(raw)
+                    grounding_started_at = time.perf_counter()
+                    candidate_criteria = _validate_provider_payload(
+                        candidate,
+                        answer=answer,
+                        question=question,
+                        competency=competency,
+                        criteria=criteria,
+                    )
+                    grounding_validation_ms = elapsed_ms(grounding_started_at)
                 payload = candidate
                 criterion_map = candidate_criteria
+                log_generation_event(
+                    event="llm_generation",
+                    success=True,
+                    provider=active_provider,
+                    operation="evaluation",
+                    correlation_id=correlation_id,
+                    attempt=attempt,
+                    provider_wait_ms=provider_wait_ms,
+                    json_parse_ms=json_parse_ms,
+                    pydantic_validation_ms=pydantic_validation_ms,
+                    grounding_validation_ms=grounding_validation_ms,
+                    total_operation_ms=elapsed_ms(operation_started_at),
+                )
                 break
-            except InterviewEvaluationProviderError:
-                if attempt == 1:
+            except InterviewEvaluationProviderError as error:
+                if error.failure_category == GenerationFailureCategory.UNKNOWN_GENERATION_ERROR:
+                    error.failure_category = (
+                        GenerationFailureCategory.GROUNDING_VALIDATION_FAILED
+                    )
+                if attempt_index == 1:
+                    log_generation_event(
+                        event="llm_generation",
+                        success=False,
+                        provider=active_provider,
+                        operation="evaluation",
+                        correlation_id=correlation_id,
+                        attempt=attempt,
+                        failure_category=(
+                            GenerationFailureCategory.GENERATION_RETRY_EXHAUSTED
+                        ),
+                        root_failure_category=error.failure_category,
+                        retry_reason=error.failure_category.value,
+                        provider_wait_ms=provider_wait_ms,
+                        json_parse_ms=json_parse_ms,
+                        pydantic_validation_ms=pydantic_validation_ms,
+                        grounding_validation_ms=grounding_validation_ms,
+                        total_operation_ms=elapsed_ms(operation_started_at),
+                    )
                     raise
+                log_generation_event(
+                    event="llm_generation_retry",
+                    success=False,
+                    provider=active_provider,
+                    operation="evaluation",
+                    correlation_id=correlation_id,
+                    attempt=attempt,
+                    failure_category=error.failure_category,
+                    retry_reason=error.failure_category.value,
+                    provider_wait_ms=provider_wait_ms,
+                    json_parse_ms=json_parse_ms,
+                    pydantic_validation_ms=pydantic_validation_ms,
+                    grounding_validation_ms=grounding_validation_ms,
+                    total_attempt_ms=elapsed_ms(attempt_started_at),
+                )
+            except Exception as error:
+                log_generation_event(
+                    event="llm_generation",
+                    success=False,
+                    provider=active_provider,
+                    operation="evaluation",
+                    correlation_id=correlation_id,
+                    attempt=attempt,
+                    failure_category=classify_generation_error(error),
+                    provider_http_status=provider_status_code(error),
+                    provider_wait_ms=provider_wait_ms,
+                    json_parse_ms=json_parse_ms,
+                    pydantic_validation_ms=pydantic_validation_ms,
+                    grounding_validation_ms=grounding_validation_ms,
+                    total_operation_ms=elapsed_ms(operation_started_at),
+                )
+                raise
 
         if payload is None or criterion_map is None:
             raise InterviewEvaluationProviderError(

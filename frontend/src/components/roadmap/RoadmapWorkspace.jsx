@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { useAuth } from '../../context/AuthContext'
 
 import { fetchJobs } from '../../services/api/jobs'
 import {
@@ -196,12 +197,12 @@ function hasAvailableEffort(item) {
 
 function SummaryMetric({ label, value }) {
   return (
-    <div className="rounded-xl border border-white/8 bg-white/[0.025] p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">
+    <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--cl-faint)]">
         {label}
       </p>
 
-      <p className="mt-2 text-xl font-medium text-white/85">
+      <p className="mt-2 text-xl font-medium text-[var(--cl-text)]">
         {value}
       </p>
     </div>
@@ -211,31 +212,31 @@ function SummaryMetric({ label, value }) {
 function RoadmapProgressSummary({ summary }) {
   return (
     <section
-      className="mb-5 rounded-2xl border border-[#d6b36a]/15 bg-[#d6b36a]/[0.035] p-5"
+      className="mb-5 rounded-2xl border border-[var(--cl-accent-soft)] bg-[var(--cl-accent-soft)] p-5"
       aria-labelledby="roadmap-progress-summary-heading"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
             Progress overview
           </p>
 
           <h3
             id="roadmap-progress-summary-heading"
-            className="mt-2 text-lg font-medium text-white/90"
+            className="mt-2 text-lg font-medium text-[var(--cl-text)]"
           >
             Learning roadmap progress
           </h3>
         </div>
 
-        <span className="text-sm font-medium text-[#e5c57c]/85">
+        <span className="text-sm font-medium text-[var(--cl-accent)]/85">
           {summary.completionPercentage}% complete
         </span>
       </div>
 
       <div className="mt-5">
         <div
-          className="h-2 overflow-hidden rounded-full bg-white/10"
+          className="h-2 overflow-hidden rounded-full bg-[var(--cl-border)]"
           role="progressbar"
           aria-label="Roadmap completion progress"
           aria-valuemin="0"
@@ -243,14 +244,14 @@ function RoadmapProgressSummary({ summary }) {
           aria-valuenow={summary.completionPercentage}
         >
           <div
-            className="h-full rounded-full bg-[#d6b36a] transition-[width]"
+            className="h-full rounded-full bg-[var(--cl-accent)] transition-[width]"
             style={{
               width: `${summary.completionPercentage}%`,
             }}
           />
         </div>
 
-        <p className="mt-2 text-xs text-white/40">
+        <p className="mt-2 text-xs text-[var(--cl-muted)]">
           {summary.completed} of {summary.total} skill
           {summary.total === 1 ? '' : 's'} completed
         </p>
@@ -264,7 +265,7 @@ function RoadmapProgressSummary({ summary }) {
       </div>
 
       {summary.total === 0 && (
-        <p className="mt-4 text-sm leading-6 text-white/45">
+        <p className="mt-4 text-sm leading-6 text-[var(--cl-muted)]">
           There are no roadmap items to track for this job yet.
         </p>
       )}
@@ -299,32 +300,32 @@ function RoadmapEffortSummary({ roadmap }) {
 
   return (
     <section
-      className="mb-5 rounded-2xl border border-white/8 bg-[#111111] p-5"
+      className="mb-5 rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-5"
       aria-labelledby="roadmap-effort-summary-heading"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
             Learning effort
           </p>
 
           <h3
             id="roadmap-effort-summary-heading"
-            className="mt-2 text-lg font-medium text-white/90"
+            className="mt-2 text-lg font-medium text-[var(--cl-text)]"
           >
             Indicative effort estimate
           </h3>
         </div>
 
         {totalItems > 0 && availableItems > 0 && (
-          <span className="text-sm font-medium text-[#e5c57c]/85">
+          <span className="text-sm font-medium text-[var(--cl-accent)]/85">
             {minimumHours}–{maximumHours} hours
           </span>
         )}
       </div>
 
       {totalItems === 0 ? (
-        <p className="mt-4 text-sm leading-6 text-white/45">
+        <p className="mt-4 text-sm leading-6 text-[var(--cl-muted)]">
           There are no roadmap skills with effort to estimate yet.
         </p>
       ) : (
@@ -349,12 +350,12 @@ function RoadmapEffortSummary({ roadmap }) {
           </div>
 
           {availableItems === 0 ? (
-            <p className="mt-4 text-sm leading-6 text-white/45">
+            <p className="mt-4 text-sm leading-6 text-[var(--cl-muted)]">
               No reliable effort estimate is currently available for
               these roadmap skills.
             </p>
           ) : (
-            <p className="mt-4 text-sm leading-6 text-white/50">
+            <p className="mt-4 text-sm leading-6 text-[var(--cl-muted)]">
               This range is an indicative learning effort for the
               complete roadmap.
             </p>
@@ -388,7 +389,7 @@ function CompletionFeedback({
 
       {nextItem ? (
         <>
-          <p className="mt-2 text-sm leading-6 text-white/50">
+          <p className="mt-2 text-sm leading-6 text-[var(--cl-muted)]">
             Your next recommended skill is {nextItem.skill || 'the next roadmap item'}.
           </p>
 
@@ -401,7 +402,7 @@ function CompletionFeedback({
           </button>
         </>
       ) : (
-        <p className="mt-2 text-sm leading-6 text-white/50">
+        <p className="mt-2 text-sm leading-6 text-[var(--cl-muted)]">
           You have completed every skill in this roadmap.
         </p>
       )}
@@ -432,16 +433,16 @@ function RoadmapProgressFilters({
             className={[
               'rounded-full border px-3 py-2 text-xs font-medium transition',
               isSelected
-                ? 'border-[#d6b36a]/50 bg-[#d6b36a]/12 text-[#f0d18b]'
-                : 'border-white/10 bg-white/[0.02] text-white/50 hover:border-white/20 hover:text-white/80',
+                ? 'border-[var(--cl-accent)] bg-[var(--cl-accent)]/12 text-[var(--cl-accent)]'
+                : 'border-[var(--cl-border)] bg-[var(--cl-surface-muted)] text-[var(--cl-muted)] hover:border-[var(--cl-border-strong)] hover:text-[var(--cl-text)]',
             ].join(' ')}
           >
             {filter.label}
             <span
               className={
                 isSelected
-                  ? 'ml-2 text-[#f0d18b]/80'
-                  : 'ml-2 text-white/30'
+                  ? 'ml-2 text-[var(--cl-accent)]/80'
+                  : 'ml-2 text-[var(--cl-faint)]'
               }
             >
               {filterCounts[filter.value]}
@@ -464,7 +465,7 @@ function RoadmapSearchAndSort({
       <div>
         <label
           htmlFor="roadmap-search"
-          className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35"
+          className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]"
         >
           Search skills
         </label>
@@ -475,14 +476,14 @@ function RoadmapSearchAndSort({
           value={searchQuery}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Search by skill name"
-          className="mt-2 w-full rounded-lg border border-white/10 bg-[#0b0b0b] px-3 py-2.5 text-sm text-white/75 outline-none placeholder:text-white/25 focus:border-[#d6b36a]/60"
+          className="mt-2 w-full rounded-lg border border-[var(--cl-border)] bg-[var(--cl-input-bg)] px-3 py-2.5 text-sm text-[var(--cl-text-soft)] outline-none placeholder:text-[var(--cl-faint)] focus:border-[var(--cl-accent)]"
         />
       </div>
 
       <div>
         <label
           htmlFor="roadmap-sort"
-          className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35"
+          className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]"
         >
           Sort roadmap
         </label>
@@ -491,7 +492,7 @@ function RoadmapSearchAndSort({
           id="roadmap-sort"
           value={sortOption}
           onChange={(event) => onSortChange(event.target.value)}
-          className="mt-2 w-full rounded-lg border border-white/10 bg-[#0b0b0b] px-3 py-2.5 text-sm text-white/75 outline-none focus:border-[#d6b36a]/60"
+          className="mt-2 w-full rounded-lg border border-[var(--cl-border)] bg-[var(--cl-input-bg)] px-3 py-2.5 text-sm text-[var(--cl-text-soft)] outline-none focus:border-[var(--cl-accent)]"
         >
           {SORT_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -506,11 +507,11 @@ function RoadmapSearchAndSort({
 
 function EffortBadge({ item }) {
   return hasAvailableEffort(item) ? (
-    <span className="inline-flex rounded-full border border-[#d6b36a]/25 bg-[#d6b36a]/[0.06] px-3 py-1.5 text-xs font-medium text-[#e5c57c]/90">
+    <span className="inline-flex rounded-full border border-[var(--cl-accent-soft)] bg-[var(--cl-accent)]/[0.06] px-3 py-1.5 text-xs font-medium text-[var(--cl-accent)]/90">
       {item.minimum_hours}–{item.maximum_hours} hours
     </span>
   ) : (
-    <span className="inline-flex rounded-full border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs text-white/45">
+    <span className="inline-flex rounded-full border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] px-3 py-1.5 text-xs text-[var(--cl-muted)]">
       Estimate unavailable
     </span>
   )
@@ -535,13 +536,13 @@ function RoadmapItem({
 
   return (
     <article
-      className="rounded-2xl border border-white/8 bg-[#111111] p-5"
+      className="rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-5"
       data-testid={`roadmap-item-${item.id}`}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="break-words text-base font-medium text-white/90">
+            <h3 className="break-words text-base font-medium text-[var(--cl-text)]">
               {item.skill || 'Unnamed skill'}
             </h3>
 
@@ -554,12 +555,12 @@ function RoadmapItem({
               {item.status || 'unknown'}
             </span>
 
-            <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.13em] text-white/45">
+            <span className="rounded-full border border-[var(--cl-border)] px-2 py-1 text-[10px] uppercase tracking-[0.13em] text-[var(--cl-muted)]">
               {item.priority || 'unknown'} priority
             </span>
           </div>
 
-          <p className="mt-3 text-sm leading-6 text-white/50">
+          <p className="mt-3 text-sm leading-6 text-[var(--cl-muted)]">
             {item.reason || 'No reason was provided.'}
           </p>
 
@@ -571,7 +572,7 @@ function RoadmapItem({
         <div className="shrink-0">
           <label
             htmlFor={`roadmap-progress-${item.id}`}
-            className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35"
+            className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--cl-faint)]"
           >
             Progress
           </label>
@@ -583,7 +584,7 @@ function RoadmapItem({
               onProgressChange(item.id, event.target.value)
             }
             disabled={isUpdating}
-            className="mt-2 min-w-[150px] rounded-lg border border-white/10 bg-[#0b0b0b] px-3 py-2 text-xs text-white/75 outline-none transition focus:border-[#d6b36a]/60 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-2 min-w-[150px] rounded-lg border border-[var(--cl-border)] bg-[var(--cl-input-bg)] px-3 py-2 text-xs text-[var(--cl-text-soft)] outline-none transition focus:border-[var(--cl-accent)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {!hasKnownStatus && (
               <option value="" disabled>
@@ -598,7 +599,7 @@ function RoadmapItem({
             ))}
           </select>
 
-          <p className="mt-2 text-right text-[11px] text-white/30">
+          <p className="mt-2 text-right text-[11px] text-[var(--cl-faint)]">
             {isUpdating
               ? 'Saving...'
               : getProgressLabel(item.progress_status)}
@@ -641,10 +642,10 @@ function RecommendedNextSkill({
 }) {
   return (
     <section
-      className="mb-5 rounded-2xl border border-[#d6b36a]/30 bg-[#d6b36a]/[0.055] p-5"
+      className="mb-5 rounded-2xl border border-[var(--cl-accent)]/30 bg-[var(--cl-accent-soft)] p-5"
       aria-labelledby="recommended-next-skill-heading"
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
         Recommended next skill
       </p>
 
@@ -652,13 +653,13 @@ function RecommendedNextSkill({
         <div>
           <h3
             id="recommended-next-skill-heading"
-            className="text-xl font-medium text-white/90"
+            className="text-xl font-medium text-[var(--cl-text)]"
           >
             {item.skill || 'Unnamed skill'}
           </h3>
 
           <div className="mt-3 flex flex-wrap gap-2">
-            <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.13em] text-white/55">
+            <span className="rounded-full border border-[var(--cl-border)] px-2 py-1 text-[10px] uppercase tracking-[0.13em] text-[var(--cl-text-soft)]">
               {item.priority || 'unknown'} priority
             </span>
 
@@ -674,7 +675,7 @@ function RecommendedNextSkill({
             <EffortBadge item={item} />
           </div>
 
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55">
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--cl-text-soft)]">
             {item.reason || 'No reason was provided.'}
           </p>
         </div>
@@ -682,7 +683,7 @@ function RecommendedNextSkill({
         <button
           type="button"
           onClick={onStartLearning}
-          className="shrink-0 rounded-lg bg-[#d6b36a] px-4 py-2.5 text-xs font-semibold text-[#17130b] transition hover:bg-[#e5c57c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f0d18b]/80"
+          className="shrink-0 rounded-lg bg-[var(--cl-accent)] px-4 py-2.5 text-xs font-semibold text-[var(--cl-accent-contrast)] transition hover:bg-[var(--cl-accent-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cl-accent)]/80"
         >
           Start learning
         </button>
@@ -702,6 +703,9 @@ function RecommendedNextSkill({
 }
 
 export default function RoadmapWorkspace() {
+  const { user } = useAuth()
+  const activeUserId = user?.id || CAREERLENS_DEV_USER_ID
+
   const [resume, setResume] = useState(null)
   const [jobs, setJobs] = useState([])
   const [selectedJobId, setSelectedJobId] = useState('')
@@ -870,7 +874,7 @@ export default function RoadmapWorkspace() {
     setResumeError('')
 
     try {
-      const resumes = await fetchUserResumes()
+      const resumes = await fetchUserResumes(activeUserId)
       const orderedResumes = sortResumesNewestFirst(
         Array.isArray(resumes) ? resumes : [],
       )
@@ -885,7 +889,7 @@ export default function RoadmapWorkspace() {
     } finally {
       setResumeLoading(false)
     }
-  }, [])
+  }, [activeUserId])
 
   const loadJobs = useCallback(async () => {
     setJobsLoading(true)
@@ -1010,7 +1014,7 @@ export default function RoadmapWorkspace() {
     async (skill, force = false) => {
       const normalizedSkill = normalizeResourceSkill(skill)
       const resourceCacheKey = getResourceCacheKey(
-        CAREERLENS_DEV_USER_ID,
+        activeUserId,
         skill,
       )
 
@@ -1050,7 +1054,7 @@ export default function RoadmapWorkspace() {
       try {
         const response = await fetchLearningResources(
           skill,
-          CAREERLENS_DEV_USER_ID,
+          activeUserId,
         )
 
         if (!isCurrentResourceRequest()) return
@@ -1081,14 +1085,14 @@ export default function RoadmapWorkspace() {
         }))
       }
     },
-    [resourceCache, resourceStates],
+    [resourceCache, resourceStates, activeUserId],
   )
 
   function handleToggleResources(item, resourceKey = String(item.id)) {
     const isOpening = !expandedResources[resourceKey]
     const normalizedSkill = normalizeResourceSkill(item.skill)
     const resourceCacheKey = getResourceCacheKey(
-      CAREERLENS_DEV_USER_ID,
+      activeUserId,
       item.skill,
     )
 
@@ -1255,10 +1259,10 @@ export default function RoadmapWorkspace() {
   const hasJobs = jobs.length > 0
 
   return (
-    <section className="min-h-full bg-[#0a0a0a] text-white">
-      <div className="mx-auto max-w-[1100px] px-6 py-7 lg:px-8">
+    <section className="space-y-6">
+      <div className="space-y-6">
         <header className="mb-7">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#d6b36a]">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--cl-accent)]">
             Learning intelligence
           </p>
 
@@ -1266,22 +1270,22 @@ export default function RoadmapWorkspace() {
             Learning roadmap
           </h1>
 
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/45">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--cl-muted)]">
             Turn the remaining skill gaps for a target role into
             a focused, trackable learning plan.
           </p>
         </header>
 
-        <section className="rounded-2xl border border-white/8 bg-[#111111] p-5">
+        <section className="rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-5">
           <div className="grid gap-5 md:grid-cols-2">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
                 Resume context
               </p>
 
               {resumeLoading ? (
                 <div
-                  className="mt-3 h-10 animate-pulse rounded-lg bg-white/[0.06]"
+                  className="mt-3 h-10 animate-pulse rounded-lg bg-[var(--cl-surface-muted)]"
                   aria-label="Loading resume"
                 />
               ) : resumeError ? (
@@ -1293,17 +1297,17 @@ export default function RoadmapWorkspace() {
                   <button
                     type="button"
                     onClick={loadResume}
-                    className="mt-3 rounded-lg border border-white/10 px-3 py-2 text-xs text-white/65 transition hover:border-[#d6b36a]/40 hover:text-white"
+                    className="mt-3 rounded-lg border border-[var(--cl-border)] px-3 py-2 text-xs text-[var(--cl-text-soft)] transition hover:border-[var(--cl-accent)] hover:text-[var(--cl-text)]"
                   >
                     Try again
                   </button>
                 </div>
               ) : !hasResume ? (
-                <p className="mt-3 text-sm leading-6 text-white/45">
+                <p className="mt-3 text-sm leading-6 text-[var(--cl-muted)]">
                   Upload a resume before creating a personalized roadmap.
                 </p>
               ) : (
-                <p className="mt-3 truncate text-sm text-white/75">
+                <p className="mt-3 truncate text-sm text-[var(--cl-text-soft)]">
                   {resume.original_filename || 'Latest resume'}
                 </p>
               )}
@@ -1312,14 +1316,14 @@ export default function RoadmapWorkspace() {
             <div>
               <label
                 htmlFor="roadmap-target-job"
-                className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]"
+                className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]"
               >
                 Target job
               </label>
 
               {jobsLoading ? (
                 <div
-                  className="mt-3 h-10 animate-pulse rounded-lg bg-white/[0.06]"
+                  className="mt-3 h-10 animate-pulse rounded-lg bg-[var(--cl-surface-muted)]"
                   aria-label="Loading jobs"
                 />
               ) : jobsError ? (
@@ -1331,13 +1335,13 @@ export default function RoadmapWorkspace() {
                   <button
                     type="button"
                     onClick={loadJobs}
-                    className="mt-3 rounded-lg border border-white/10 px-3 py-2 text-xs text-white/65 transition hover:border-[#d6b36a]/40 hover:text-white"
+                    className="mt-3 rounded-lg border border-[var(--cl-border)] px-3 py-2 text-xs text-[var(--cl-text-soft)] transition hover:border-[var(--cl-accent)] hover:text-[var(--cl-text)]"
                   >
                     Try again
                   </button>
                 </div>
               ) : !hasJobs ? (
-                <p className="mt-3 text-sm leading-6 text-white/45">
+                <p className="mt-3 text-sm leading-6 text-[var(--cl-muted)]">
                   No jobs are available to use as a target.
                 </p>
               ) : (
@@ -1345,7 +1349,7 @@ export default function RoadmapWorkspace() {
                   id="roadmap-target-job"
                   value={selectedJobId}
                   onChange={handleJobChange}
-                  className="mt-3 w-full rounded-lg border border-white/10 bg-[#0b0b0b] px-3 py-2.5 text-sm text-white/75 outline-none transition focus:border-[#d6b36a]/60"
+                  className="mt-3 w-full rounded-lg border border-[var(--cl-border)] bg-[var(--cl-input-bg)] px-3 py-2.5 text-sm text-[var(--cl-text-soft)] outline-none transition focus:border-[var(--cl-accent)]"
                 >
                   <option value="">Select a target job</option>
 
@@ -1362,13 +1366,13 @@ export default function RoadmapWorkspace() {
         </section>
 
         <LearningPreferencesPanel
-          userId={CAREERLENS_DEV_USER_ID}
+          userId={activeUserId}
           onSaved={handlePreferencesSaved}
         />
 
         {!resumeLoading && !hasResume && (
-          <section className="mt-6 rounded-2xl border border-[#d6b36a]/15 bg-[#d6b36a]/[0.035] p-6">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+          <section className="mt-6 rounded-2xl border border-[var(--cl-accent-soft)] bg-[var(--cl-accent-soft)] p-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
               Resume required
             </p>
 
@@ -1376,7 +1380,7 @@ export default function RoadmapWorkspace() {
               Upload a resume to unlock your roadmap.
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-white/45">
+            <p className="mt-2 text-sm leading-6 text-[var(--cl-muted)]">
               CareerLens uses the latest analyzed resume to identify
               skills that need attention for a selected job.
             </p>
@@ -1384,12 +1388,12 @@ export default function RoadmapWorkspace() {
         )}
 
         {!jobsLoading && hasResume && hasJobs && !selectedJob && (
-          <section className="mt-6 rounded-2xl border border-white/8 bg-[#111111] p-6">
-            <p className="text-sm font-medium text-white/75">
+          <section className="mt-6 rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-6">
+            <p className="text-sm font-medium text-[var(--cl-text-soft)]">
               Choose a target job to view your roadmap.
             </p>
 
-            <p className="mt-2 text-sm leading-6 text-white/40">
+            <p className="mt-2 text-sm leading-6 text-[var(--cl-muted)]">
               Select a role above and CareerLens will load the persisted
               learning plan for that match.
             </p>
@@ -1404,7 +1408,7 @@ export default function RoadmapWorkspace() {
           >
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-faint)]">
                   Target roadmap
                 </p>
 
@@ -1414,7 +1418,7 @@ export default function RoadmapWorkspace() {
               </div>
 
               {roadmap && (
-                <span className="text-xs text-white/35">
+                <span className="text-xs text-[var(--cl-faint)]">
                   {roadmap.total_items} skill
                   {roadmap.total_items === 1 ? '' : 's'} to work on
                 </span>
@@ -1436,7 +1440,7 @@ export default function RoadmapWorkspace() {
                 {[1, 2].map((item) => (
                   <div
                     key={item}
-                    className="h-32 animate-pulse rounded-2xl border border-white/6 bg-white/[0.025]"
+                    className="h-32 animate-pulse rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface-muted)]"
                   />
                 ))}
               </div>
@@ -1488,7 +1492,7 @@ export default function RoadmapWorkspace() {
                     resourceData={
                       resourceCache[
                         getResourceCacheKey(
-                          CAREERLENS_DEV_USER_ID,
+                          activeUserId,
                           focusedItem.skill,
                         )
                       ] || null
@@ -1496,7 +1500,7 @@ export default function RoadmapWorkspace() {
                     resourceLoading={Boolean(
                       resourceStates[
                         getResourceCacheKey(
-                          CAREERLENS_DEV_USER_ID,
+                          activeUserId,
                           focusedItem.skill,
                         )
                       ]?.loading,
@@ -1504,7 +1508,7 @@ export default function RoadmapWorkspace() {
                     resourceError={
                       resourceStates[
                         getResourceCacheKey(
-                          CAREERLENS_DEV_USER_ID,
+                          activeUserId,
                           focusedItem.skill,
                         )
                       ]?.error || ''
@@ -1537,7 +1541,7 @@ export default function RoadmapWorkspace() {
                       No learning gaps are currently listed.
                     </h3>
 
-                    <p className="mt-2 text-sm leading-6 text-white/40">
+                    <p className="mt-2 text-sm leading-6 text-[var(--cl-muted)]">
                       There is no next skill to recommend for this roadmap.
                     </p>
                   </section>
@@ -1548,7 +1552,7 @@ export default function RoadmapWorkspace() {
                     resourceData={
                       resourceCache[
                         getResourceCacheKey(
-                          CAREERLENS_DEV_USER_ID,
+                          activeUserId,
                           recommendedItem.skill,
                         )
                       ] || null
@@ -1556,7 +1560,7 @@ export default function RoadmapWorkspace() {
                     resourceLoading={Boolean(
                       resourceStates[
                         getResourceCacheKey(
-                          CAREERLENS_DEV_USER_ID,
+                          activeUserId,
                           recommendedItem.skill,
                         )
                       ]?.loading,
@@ -1564,7 +1568,7 @@ export default function RoadmapWorkspace() {
                     resourceError={
                       resourceStates[
                         getResourceCacheKey(
-                          CAREERLENS_DEV_USER_ID,
+                          activeUserId,
                           recommendedItem.skill,
                         )
                       ]?.error || ''
@@ -1619,7 +1623,7 @@ export default function RoadmapWorkspace() {
                         <div className="h-full w-full rounded-full bg-emerald-200/75" />
                       </div>
 
-                    <p className="mt-2 text-sm leading-6 text-white/45">
+                    <p className="mt-2 text-sm leading-6 text-[var(--cl-muted)]">
                       Keep building evidence for these skills and revisit
                       the roadmap when your target role changes.
                     </p>
@@ -1640,12 +1644,12 @@ export default function RoadmapWorkspace() {
                     />
 
                     {filteredAndSortedRoadmapItems.length === 0 ? (
-                  <div className="rounded-2xl border border-white/8 bg-[#111111] p-6">
-                    <p className="text-sm font-medium text-white/75">
+                  <div className="rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-6">
+                    <p className="text-sm font-medium text-[var(--cl-text-soft)]">
                       No roadmap items match the current search and filters.
                     </p>
 
-                    <p className="mt-2 text-sm leading-6 text-white/40">
+                    <p className="mt-2 text-sm leading-6 text-[var(--cl-muted)]">
                       Try another skill name or reset the active filter and
                       search.
                     </p>
@@ -1654,7 +1658,7 @@ export default function RoadmapWorkspace() {
                       <button
                         type="button"
                         onClick={() => setSearchQuery('')}
-                        className="rounded-lg border border-[#d6b36a]/25 px-3 py-2 text-xs font-medium text-[#e5c57c]/85 transition hover:bg-[#d6b36a]/10"
+                        className="rounded-lg border border-[var(--cl-accent-soft)] px-3 py-2 text-xs font-medium text-[var(--cl-accent)]/85 transition hover:bg-[var(--cl-accent)]/10"
                       >
                         Clear search
                       </button>
@@ -1662,7 +1666,7 @@ export default function RoadmapWorkspace() {
                       <button
                         type="button"
                         onClick={() => setSelectedFilter('all')}
-                        className="rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-white/60 transition hover:border-white/20 hover:text-white/85"
+                        className="rounded-lg border border-[var(--cl-border)] px-3 py-2 text-xs font-medium text-[var(--cl-text-soft)] transition hover:border-[var(--cl-border-strong)] hover:text-[var(--cl-text)]"
                       >
                         Show all skills
                       </button>
@@ -1675,7 +1679,7 @@ export default function RoadmapWorkspace() {
                   >
                     {filteredAndSortedRoadmapItems.map((item) => {
                       const resourceCacheKey = getResourceCacheKey(
-                        CAREERLENS_DEV_USER_ID,
+                        activeUserId,
                         item.skill,
                       )
                       const resourceState =

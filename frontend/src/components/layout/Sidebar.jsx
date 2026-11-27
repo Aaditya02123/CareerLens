@@ -1,3 +1,5 @@
+import { useAuth } from '../../context/AuthContext'
+
 const navigationItems = [
   { label: 'Overview', icon: 'overview' },
   { label: 'Resume', icon: 'resume' },
@@ -70,6 +72,12 @@ function NavIcon({ type }) {
 }
 
 function Sidebar({ activeSection, onNavigate }) {
+  const { user, isAuthenticated, openAuthModal } = useAuth()
+  const initial = user?.name
+    ? user.name.charAt(0).toUpperCase()
+    : user?.email
+      ? user.email.charAt(0).toUpperCase()
+      : 'CL'
   return (
     <aside className="border-b border-[var(--cl-border)] bg-[var(--cl-sidebar)]/95 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-[var(--sidebar-width)] lg:flex-col lg:border-b-0 lg:border-r">
       <div className="flex items-center justify-between px-4 py-4 sm:px-6 lg:block lg:px-6 lg:py-7">
@@ -117,7 +125,7 @@ function Sidebar({ activeSection, onNavigate }) {
                 'flex shrink-0 items-center gap-3 rounded-[var(--radius-md)] border px-3 py-2.5 text-sm font-medium transition',
                 'lg:w-full',
                 isActive
-                  ? 'border-[var(--cl-border-strong)] bg-[var(--cl-surface-soft)] text-[var(--cl-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'
+                  ? 'border-[var(--cl-border-strong)] bg-[var(--cl-surface-soft)] text-[var(--cl-text)]'
                   : 'border-transparent text-[var(--cl-muted)] hover:border-[var(--cl-border)] hover:bg-[var(--cl-surface-muted)] hover:text-[var(--cl-text-soft)]',
               ].join(' ')}
               aria-current={isActive ? 'page' : undefined}
@@ -141,18 +149,28 @@ function Sidebar({ activeSection, onNavigate }) {
       <div className="hidden border-t border-[var(--cl-border)] p-4 lg:block">
         <div className="rounded-[var(--radius-md)] border border-[var(--cl-border)] bg-[var(--cl-surface-muted)] p-4">
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--cl-faint)]">
-            Profile
+            {isAuthenticated ? 'Authenticated Account' : 'Guest Explorer'}
           </p>
           <div className="mt-3 flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-[var(--cl-accent-soft)] text-xs font-semibold text-[var(--cl-accent)]">
-              AD
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--cl-accent-soft)] text-xs font-semibold text-[var(--cl-accent)]">
+              {initial}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-[var(--cl-text)]">
-                Your Profile
+                {isAuthenticated ? user?.name : 'Guest User'}
               </p>
               <p className="truncate text-xs text-[var(--cl-muted)]">
-                Career Workspace
+                {isAuthenticated ? (
+                  user?.email
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal('login')}
+                    className="font-medium text-[var(--cl-accent)] hover:underline"
+                  >
+                    Sign in to sync
+                  </button>
+                )}
               </p>
             </div>
           </div>

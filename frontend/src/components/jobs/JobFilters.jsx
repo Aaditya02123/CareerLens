@@ -16,10 +16,10 @@ export default function JobFilters({
     source
 
   return (
-    <div className="border-b border-white/8 bg-[#101010] px-5 py-5">
+    <div className="rounded-2xl border border-[var(--cl-border)] bg-[var(--cl-surface)] px-5 py-5 shadow-xs">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
         <div className="relative flex-1">
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/35">
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-[var(--cl-muted)]">
             ⌕
           </span>
 
@@ -30,12 +30,12 @@ export default function JobFilters({
               onSearchChange(event.target.value)
             }
             placeholder="Search job titles..."
-            className="h-11 w-full rounded-xl border border-white/8 bg-white/[0.035] pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#d6b36a]/50 focus:bg-white/[0.05]"
+            className="h-11 w-full rounded-xl border border-[var(--cl-border)] bg-[var(--cl-input-bg)] pl-10 pr-4 text-sm text-[var(--cl-text)] outline-none transition placeholder:text-[var(--cl-faint)] focus:border-[var(--cl-accent)]"
           />
         </div>
 
         <div className="relative flex-1 xl:max-w-[220px]">
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/35">
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-[var(--cl-muted)]">
             ◇
           </span>
 
@@ -46,7 +46,7 @@ export default function JobFilters({
               onLocationChange(event.target.value)
             }
             placeholder="Location"
-            className="h-11 w-full rounded-xl border border-white/8 bg-white/[0.035] pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#d6b36a]/50 focus:bg-white/[0.05]"
+            className="h-11 w-full rounded-xl border border-[var(--cl-border)] bg-[var(--cl-input-bg)] pl-10 pr-4 text-sm text-[var(--cl-text)] outline-none transition placeholder:text-[var(--cl-faint)] focus:border-[var(--cl-accent)]"
           />
         </div>
 
@@ -55,7 +55,7 @@ export default function JobFilters({
           onChange={(event) =>
             onExperienceChange(event.target.value)
           }
-          className="h-11 rounded-xl border border-white/8 bg-[#151515] px-4 text-sm text-white/70 outline-none transition focus:border-[#d6b36a]/50 xl:w-[190px]"
+          className="h-11 rounded-xl border border-[var(--cl-border)] bg-[var(--cl-input-bg)] px-4 text-sm text-[var(--cl-text)] outline-none transition focus:border-[var(--cl-accent)] xl:w-[190px]"
         >
           <option value="">Experience level</option>
           <option value="internship">Internship</option>
@@ -72,14 +72,14 @@ export default function JobFilters({
             onSourceChange(event.target.value)
           }
           placeholder="Source"
-          className="h-11 rounded-xl border border-white/8 bg-white/[0.035] px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#d6b36a]/50 focus:bg-white/[0.05] xl:w-[160px]"
+          className="h-11 rounded-xl border border-[var(--cl-border)] bg-[var(--cl-input-bg)] px-4 text-sm text-[var(--cl-text)] outline-none transition placeholder:text-[var(--cl-faint)] focus:border-[var(--cl-accent)] xl:w-[160px]"
         />
 
         {hasFilters && (
           <button
             type="button"
             onClick={onClear}
-            className="h-11 rounded-xl border border-white/8 px-4 text-sm text-white/55 transition hover:border-white/15 hover:bg-white/[0.04] hover:text-white"
+            className="h-11 rounded-xl border border-[var(--cl-border)] px-4 text-sm font-medium text-[var(--cl-muted)] transition hover:border-[var(--cl-border-strong)] hover:bg-[var(--cl-surface-soft)] hover:text-[var(--cl-text)]"
           >
             Clear
           </button>

@@ -112,13 +112,13 @@ function ResumeUpload({
         className="mt-4"
       >
         {uploadError ? (
-          <p className="rounded-[var(--radius-md)] border border-[rgba(248,113,113,0.32)] bg-[rgba(248,113,113,0.08)] px-4 py-3 text-sm leading-6 text-[var(--cl-text-soft)]">
+          <p className="rounded-[var(--radius-md)] border border-[var(--cl-danger)]/30 bg-[var(--cl-danger-soft)] px-4 py-3 text-sm leading-6 text-[var(--cl-text-soft)]">
             {uploadError}
           </p>
         ) : null}
 
         {uploadMessage ? (
-          <p className="rounded-[var(--radius-md)] border border-[rgba(74,222,128,0.24)] bg-[var(--cl-success-soft)] px-4 py-3 text-sm leading-6 text-[var(--cl-text-soft)]">
+          <p className="rounded-[var(--radius-md)] border border-[var(--cl-success)]/30 bg-[var(--cl-success-soft)] px-4 py-3 text-sm leading-6 text-[var(--cl-text-soft)]">
             {uploadMessage}
           </p>
         ) : null}

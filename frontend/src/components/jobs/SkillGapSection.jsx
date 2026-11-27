@@ -9,20 +9,20 @@ function GapItem({ item, status }) {
     <article
       className={[
         'rounded-xl border p-4',
-        statusStyles[status] || 'border-white/8 bg-white/[0.02]',
+        statusStyles[status] || 'border-[var(--cl-border)] bg-[var(--cl-surface-muted)]',
       ].join(' ')}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h4 className="min-w-0 break-words text-sm font-medium text-white/80">
+        <h4 className="min-w-0 break-words text-sm font-medium text-[var(--cl-text)]">
           {item.skill}
         </h4>
 
-        <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.13em] text-white/45">
+        <span className="rounded-full border border-[var(--cl-border)] px-2 py-1 text-[10px] uppercase tracking-[0.13em] text-[var(--cl-muted)]">
           {item.priority} priority
         </span>
       </div>
 
-      <p className="mt-2 text-xs leading-5 text-white/50">
+      <p className="mt-2 text-xs leading-5 text-[var(--cl-muted)]">
         {item.reason}
       </p>
     </article>
@@ -36,7 +36,7 @@ function GapCategory({ title, items, status }) {
 
   return (
     <section>
-      <h3 className="text-[10px] font-semibold uppercase tracking-[0.17em] text-white/35">
+      <h3 className="text-[10px] font-semibold uppercase tracking-[0.17em] text-[var(--cl-faint)]">
         {title}
       </h3>
 
@@ -80,25 +80,25 @@ export default function SkillGapSection({
 }) {
   return (
     <section
-      className="rounded-xl border border-[#d6b36a]/12 bg-[#d6b36a]/[0.025] p-5"
+      className="rounded-xl border border-[var(--cl-accent-soft)] bg-[var(--cl-accent-soft)] p-5"
       aria-labelledby="skill-gap-analysis-heading"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d6b36a]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--cl-accent)]">
             Skill gap analysis
           </p>
 
           <h3
             id="skill-gap-analysis-heading"
-            className="mt-2 text-xl font-medium tracking-[-0.02em] text-white"
+            className="mt-2 text-xl font-medium tracking-[-0.02em] text-[var(--cl-text)]"
           >
             Required-skill coverage
           </h3>
         </div>
 
         {!loading && !error && data && (
-          <span className="text-xs text-white/35">
+          <span className="text-xs text-[var(--cl-faint)]">
             {data.total_required_skills || 0} required skills
           </span>
         )}
@@ -110,9 +110,9 @@ export default function SkillGapSection({
           aria-live="polite"
           aria-label="Loading skill gap analysis"
         >
-          <div className="h-3 animate-pulse rounded bg-white/[0.08]" />
-          <div className="h-3 w-10/12 animate-pulse rounded bg-white/[0.08]" />
-          <div className="h-16 animate-pulse rounded-xl bg-white/[0.05]" />
+          <div className="h-3 animate-pulse rounded bg-[var(--cl-surface-muted)]" />
+          <div className="h-3 w-10/12 animate-pulse rounded bg-[var(--cl-surface-muted)]" />
+          <div className="h-16 animate-pulse rounded-xl bg-[var(--cl-surface-soft)]" />
         </div>
       ) : error ? (
         <div
@@ -120,11 +120,11 @@ export default function SkillGapSection({
           role="alert"
         >
           <div>
-            <p className="text-sm text-white/55">
+            <p className="text-sm text-[var(--cl-text-soft)]">
               Unable to load skill-gap analysis.
             </p>
 
-            <p className="mt-1 text-xs leading-5 text-white/35">
+            <p className="mt-1 text-xs leading-5 text-[var(--cl-faint)]">
               {error}
             </p>
           </div>
@@ -132,13 +132,13 @@ export default function SkillGapSection({
           <button
             type="button"
             onClick={onRetry}
-            className="shrink-0 rounded-lg border border-[#d6b36a]/20 px-3 py-2 text-xs font-medium text-[#e5c57c]/80 transition hover:bg-[#d6b36a]/10 hover:text-[#e5c57c]"
+            className="shrink-0 rounded-lg border border-[var(--cl-accent-soft)] px-3 py-2 text-xs font-medium text-[var(--cl-accent)]/80 transition hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)]"
           >
             Retry
           </button>
         </div>
       ) : !data ? (
-        <p className="mt-4 text-sm leading-6 text-white/40">
+        <p className="mt-4 text-sm leading-6 text-[var(--cl-muted)]">
           Skill-gap analysis is not available for this match.
         </p>
       ) : (
@@ -185,7 +185,7 @@ export default function SkillGapSection({
             {(!data.matched || data.matched.length === 0) &&
               (!data.partial || data.partial.length === 0) &&
               (!data.missing || data.missing.length === 0) && (
-                <p className="text-sm leading-6 text-white/40">
+                <p className="text-sm leading-6 text-[var(--cl-muted)]">
                   No required skills were returned for this job.
                 </p>
               )}

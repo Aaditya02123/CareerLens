@@ -43,7 +43,7 @@ function ResumeEmptyState({
 
   return (
     <section className="grid gap-6 xl:grid-cols-[1.12fr_0.88fr]">
-      <div className="relative overflow-hidden rounded-[var(--radius-lg)] border border-[var(--cl-border-strong)] bg-[linear-gradient(145deg,var(--cl-surface),#0d151f)] p-6 shadow-[var(--shadow-soft)] sm:p-8">
+      <div className="relative overflow-hidden rounded-[var(--radius-lg)] border border-[var(--cl-border-strong)] bg-[linear-gradient(145deg,var(--cl-surface),var(--cl-surface-muted))] p-6 shadow-[var(--shadow-soft)] sm:p-8">
         <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full border border-[var(--cl-border)] opacity-40" />
         <div className="pointer-events-none absolute -bottom-28 -left-16 h-64 w-64 rounded-full border border-[var(--cl-border)] opacity-30" />
 

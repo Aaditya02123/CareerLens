@@ -1,3 +1,5 @@
+import { getAuthHeaders, getStoredUser } from './auth'
+
 const API_BASE_URL = 'http://127.0.0.1:8000'
 
 const ALLOWED_PROGRESS_STATUSES = new Set([
@@ -32,11 +34,21 @@ export async function fetchLearningRoadmap(resumeId, jobId) {
     throw new Error('A job ID is required for the learning roadmap.')
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/roadmaps/resumes/${encodeURIComponent(
-      resumeId,
-    )}/jobs/${encodeURIComponent(jobId)}`,
-  )
+  const authHeaders = getAuthHeaders()
+  const response = authHeaders
+    ? await fetch(
+        `${API_BASE_URL}/roadmaps/resumes/${encodeURIComponent(
+          resumeId,
+        )}/jobs/${encodeURIComponent(jobId)}`,
+        {
+          headers: authHeaders,
+        },
+      )
+    : await fetch(
+        `${API_BASE_URL}/roadmaps/resumes/${encodeURIComponent(
+          resumeId,
+        )}/jobs/${encodeURIComponent(jobId)}`,
+      )
 
   return readJsonResponse(
     response,
@@ -53,11 +65,21 @@ export async function fetchRoadmapSchedule(resumeId, jobId) {
     throw new Error('A job ID is required for the roadmap schedule.')
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/roadmaps/resumes/${encodeURIComponent(
-      resumeId,
-    )}/jobs/${encodeURIComponent(jobId)}/schedule`,
-  )
+  const authHeaders = getAuthHeaders()
+  const response = authHeaders
+    ? await fetch(
+        `${API_BASE_URL}/roadmaps/resumes/${encodeURIComponent(
+          resumeId,
+        )}/jobs/${encodeURIComponent(jobId)}/schedule`,
+        {
+          headers: authHeaders,
+        },
+      )
+    : await fetch(
+        `${API_BASE_URL}/roadmaps/resumes/${encodeURIComponent(
+          resumeId,
+        )}/jobs/${encodeURIComponent(jobId)}/schedule`,
+      )
 
   return readJsonResponse(
     response,
@@ -81,6 +103,7 @@ export async function updateLearningRoadmapProgress(
     )
   }
 
+  const authHeaders = getAuthHeaders()
   const response = await fetch(
     `${API_BASE_URL}/roadmaps/items/${encodeURIComponent(
       itemId,
@@ -89,6 +112,7 @@ export async function updateLearningRoadmapProgress(
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
+        ...(authHeaders || {}),
       },
       body: JSON.stringify({
         progress_status: progressStatus,
@@ -109,15 +133,21 @@ export async function fetchLearningResources(skill, userId = null) {
     )
   }
 
-  const resourcePath = userId
+  const storedUser = getStoredUser()
+  const activeUserId = storedUser?.id || userId || null
+
+  const resourcePath = activeUserId
     ? `/users/${encodeURIComponent(
-        userId,
+        activeUserId,
       )}/learning-resources/${encodeURIComponent(skill)}`
     : `/learning-resources/${encodeURIComponent(skill)}`
 
-  const response = await fetch(
-    `${API_BASE_URL}${resourcePath}`,
-  )
+  const authHeaders = getAuthHeaders()
+  const response = authHeaders
+    ? await fetch(`${API_BASE_URL}${resourcePath}`, {
+        headers: authHeaders,
+      })
+    : await fetch(`${API_BASE_URL}${resourcePath}`)
 
   return readJsonResponse(
     response,
